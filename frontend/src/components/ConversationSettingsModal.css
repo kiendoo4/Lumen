@@ -1,0 +1,53 @@
+.conversation-settings-modal {
+  max-width: 500px;
+}
+
+.conversation-settings-form {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.avatar-section {
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar-preview img {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 3px solid var(--border-color);
+}
+
+.avatar-change-button {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.avatar-change-button:hover:not(:disabled) {
+  background: var(--conversation-hover);
+  border-color: var(--primary-color);
+}
+
+.avatar-change-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
