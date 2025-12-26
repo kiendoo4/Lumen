@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
-import { ThemeProvider } from './contexts/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ChatInterface from './components/ChatInterface';
-import ProfileModal from './components/ProfileModal';
+import ProfilePage from './components/ProfilePage';
 import './App.css';
 
 function AuthScreen() {
-  const { t } = useLanguage();
+  const { t, language, toggleLanguage } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
@@ -58,6 +60,38 @@ function AuthScreen() {
 
   return (
     <div className="auth-screen">
+      <div className="auth-top-controls">
+        <button
+          className="auth-control-button"
+          onClick={toggleLanguage}
+          title={language === 'en' ? 'Switch to Vietnamese' : 'Chuyển sang Tiếng Anh'}
+        >
+          {language === 'en' ? 'VI' : 'EN'}
+        </button>
+        <button
+          className="auth-control-button"
+          onClick={toggleTheme}
+          title={theme === 'light' ? t('theme.dark') : t('theme.light')}
+        >
+          {theme === 'light' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          )}
+        </button>
+      </div>
       <div className="auth-container">
         <div className="auth-left">
           <div className="auth-hero">
@@ -234,9 +268,9 @@ function AuthScreen() {
   );
 }
 
-function AppContent() {
-  const { isAuthenticated, loading } = useAuth();
-  const [showProfile, setShowProfile] = useState(false);
+function ProtectedRoute({ children }) {
+  const { loading, user } = useAuth();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -246,15 +280,72 @@ function AppContent() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <AuthScreen />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const { loading, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [loading, user, navigate]);
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null; // Will redirect via useEffect
+  }
+
+  return children;
+}
+
+function ChatPage() {
+  const navigate = useNavigate();
   return (
     <div className="app">
-      <ChatInterface onProfileClick={() => setShowProfile(true)} />
-      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
+      <ChatInterface onProfileClick={() => navigate('/setting')} />
     </div>
+  );
+}
+
+function ProfilePageRoute() {
+  const navigate = useNavigate();
+  return <ProfilePage onBack={() => navigate('/')} />;
+}
+
+function AppContent() {
+  return (
+    <Routes>
+      <Route path="/login" element={
+        <PublicRoute>
+          <AuthScreen />
+        </PublicRoute>
+      } />
+      <Route path="/setting" element={
+        <ProtectedRoute>
+          <ProfilePageRoute />
+        </ProtectedRoute>
+      } />
+      <Route path="/" element={
+        <ProtectedRoute>
+          <ChatPage />
+        </ProtectedRoute>
+      } />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
@@ -263,7 +354,9 @@ function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <AppContent />
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

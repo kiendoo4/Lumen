@@ -57,6 +57,9 @@ function Header({ onProfileClick }) {
                 src={user.avatar_url || '/default_avatar.jpeg'}
                 alt={user.username}
                 className="header-avatar"
+                onError={(e) => {
+                  e.target.src = '/default_avatar.jpeg';
+                }}
               />
             </button>
           )}

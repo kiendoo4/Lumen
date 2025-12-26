@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
@@ -57,7 +57,7 @@ async def get_conversations(
 
 @router.post("/", response_model=ConversationResponse)
 async def create_conversation(
-    conversation_data: ConversationCreate,
+    title: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -72,7 +72,7 @@ async def create_conversation(
     
     new_conv = Conversation(
         user_id=current_user["userId"],
-        title=conversation_data.title or "New Conversation",
+        title=title or "New Conversation",
         avatar_url=avatar_url
     )
     db.add(new_conv)
@@ -92,7 +92,7 @@ async def create_conversation(
 @router.put("/{conversation_id}", response_model=ConversationResponse)
 async def update_conversation(
     conversation_id: int,
-    conversation_data: ConversationUpdate,
+    title: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -105,8 +105,8 @@ async def update_conversation(
     if not conv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     
-    if conversation_data.title:
-        conv.title = conversation_data.title
+    if title:
+        conv.title = title
     
     if avatar:
         file_path = f"conversations/{current_user['userId']}/{avatar.filename}"

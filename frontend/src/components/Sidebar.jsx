@@ -101,19 +101,6 @@ function Sidebar({
                       className="sidebar-action-button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpenConversationSettings(conversation.id);
-                      }}
-                      title={t('sidebar.settings')}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m0 0L5.636 5.636"></path>
-                      </svg>
-                    </button>
-                    <button
-                      className="sidebar-action-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
                         onCreateDialog(conversation.id);
                       }}
                       title={t('sidebar.newDialog')}
@@ -123,6 +110,21 @@ function Sidebar({
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                       </svg>
                     </button>
+                    {onOpenConversationSettings && (
+                      <button
+                        className="sidebar-action-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenConversationSettings(conversation.id);
+                        }}
+                        title={t('sidebar.settings')}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="3"></circle>
+                          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                        </svg>
+                      </button>
+                    )}
                     <button
                       className="sidebar-action-button"
                       onClick={(e) => {
@@ -153,6 +155,14 @@ function Sidebar({
                           }`}
                           onClick={() => onSelectDialog(conversation.id, dialog.id)}
                         >
+                          <img 
+                            src="/images/chatbot.png" 
+                            alt={dialog.title}
+                            className="sidebar-dialog-avatar"
+                            onError={(e) => {
+                              e.target.src = '/images/chatbot.png';
+                            }}
+                          />
                           <span className="sidebar-dialog-title">{dialog.title}</span>
                           <button
                             className="sidebar-dialog-delete"

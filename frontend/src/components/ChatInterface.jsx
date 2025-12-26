@@ -4,6 +4,7 @@ import InputArea from './InputArea';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import DialogSettingsModal from './DialogSettingsModal';
+import CreateConversationModal from './CreateConversationModal';
 import ConversationSettingsModal from './ConversationSettingsModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +22,7 @@ function ChatInterface({ onProfileClick }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogSettingsOpen, setIsDialogSettingsOpen] = useState(false);
   const [isConversationSettingsOpen, setIsConversationSettingsOpen] = useState(false);
-  const [settingsConversationId, setSettingsConversationId] = useState(null);
+  const [selectedConversationForSettings, setSelectedConversationForSettings] = useState(null);
   const [context, setContext] = useState({
     papers: []
   });
@@ -114,25 +115,19 @@ function ChatInterface({ onProfileClick }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleCreateConversation = async () => {
-    try {
-      const response = await axios.post('/api/conversations/', { title: 'New Conversation' });
-      // Backend returns ConversationResponse directly
-      const newConv = response.data;
-      
-      // Create first dialog
-      const dialogResponse = await axios.post(`/api/dialogs/conversation/${newConv.id}`, {
-        title: 'New Dialog'
-      });
-      
-      await loadConversations();
-      setSelectedConversationId(newConv.id);
-      // Backend returns DialogResponse directly
-      setSelectedDialogId(dialogResponse.data.id);
-      setMessages([]);
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-    }
+  const [isCreateConversationModalOpen, setIsCreateConversationModalOpen] = useState(false);
+
+  const handleCreateConversation = () => {
+    setIsCreateConversationModalOpen(true);
+  };
+
+  const handleConversationCreated = async (data) => {
+    const { conversation, dialog } = data;
+    await loadConversations();
+    setSelectedConversationId(conversation.id);
+    setSelectedDialogId(dialog.id);
+    setMessages([]);
+    setIsCreateConversationModalOpen(false);
   };
 
   const handleCreateDialog = async (conversationId) => {
@@ -148,6 +143,18 @@ function ChatInterface({ onProfileClick }) {
     } catch (error) {
       console.error('Error creating dialog:', error);
     }
+  };
+
+  const handleOpenConversationSettings = (conversationId) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    setSelectedConversationForSettings(conversation);
+    setIsConversationSettingsOpen(true);
+  };
+
+  const handleConversationUpdate = (updatedConversation) => {
+    setConversations(prev => prev.map(c => 
+      c.id === updatedConversation.id ? { ...c, ...updatedConversation } : c
+    ));
   };
 
   const handleSelectConversation = (conversationId) => {
@@ -337,11 +344,6 @@ function ChatInterface({ onProfileClick }) {
     }
   };
 
-  const handleOpenConversationSettings = (conversationId) => {
-    setSettingsConversationId(conversationId);
-    setIsConversationSettingsOpen(true);
-  };
-
   const handleOpenDialogSettings = () => {
     if (selectedDialogId) {
       setIsDialogSettingsOpen(true);
@@ -373,13 +375,6 @@ function ChatInterface({ onProfileClick }) {
     }
   };
 
-  const handleUpdateConversation = (updatedConversation) => {
-    setConversations(prev => (prev || []).map(c => 
-      c.id === updatedConversation.id ? { ...c, ...updatedConversation } : c
-    ));
-  };
-
-  const selectedConversation = conversations?.find(c => c.id === selectedConversationId) || null;
 
   return (
     <div className="chat-interface">
@@ -399,21 +394,6 @@ function ChatInterface({ onProfileClick }) {
           onOpenConversationSettings={handleOpenConversationSettings}
         />
         <div className="chat-main">
-          {selectedDialogId && (
-            <div className="chat-header-actions">
-              <button
-                className="chat-settings-button"
-                onClick={handleOpenDialogSettings}
-                title={t('sidebar.settings')}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m0 0L5.636 5.636"></path>
-                </svg>
-                {t('sidebar.settings')}
-              </button>
-            </div>
-          )}
           <MessageList 
             messages={messages} 
             isLoading={isLoading}
@@ -441,12 +421,20 @@ function ChatInterface({ onProfileClick }) {
         context={context}
         onAddContext={handleAddContext}
       />
+      <CreateConversationModal
+        isOpen={isCreateConversationModalOpen}
+        onClose={() => setIsCreateConversationModalOpen(false)}
+        onCreate={handleConversationCreated}
+      />
       <ConversationSettingsModal
         isOpen={isConversationSettingsOpen}
-        onClose={() => setIsConversationSettingsOpen(false)}
-        conversationId={settingsConversationId}
-        conversation={selectedConversation}
-        onUpdate={handleUpdateConversation}
+        onClose={() => {
+          setIsConversationSettingsOpen(false);
+          setSelectedConversationForSettings(null);
+        }}
+        conversationId={selectedConversationForSettings?.id}
+        conversation={selectedConversationForSettings}
+        onUpdate={handleConversationUpdate}
       />
     </div>
   );

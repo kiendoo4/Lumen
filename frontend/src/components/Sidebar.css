@@ -153,11 +153,12 @@
 .sidebar-conversation-actions {
   display: flex;
   gap: 0.25rem;
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.2s;
 }
 
-.sidebar-conversation-header:hover .sidebar-conversation-actions {
+.sidebar-conversation-header:hover .sidebar-conversation-actions,
+.sidebar-conversation-header.active .sidebar-conversation-actions {
   opacity: 1;
 }
 
@@ -196,6 +197,15 @@
   cursor: pointer;
   transition: background 0.2s;
   position: relative;
+  gap: 0.5rem;
+}
+
+.sidebar-dialog-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .sidebar-dialog-item:hover {

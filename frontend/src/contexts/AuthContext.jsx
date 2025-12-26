@@ -18,31 +18,67 @@ axios.defaults.baseURL = API_BASE;
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(null);
 
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Only fetch user if we don't have user data yet
-      if (!user) {
-        fetchUser();
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
+  };
 
   const fetchUser = async () => {
     try {
       const response = await axios.get('/api/auth/me');
       setUser(response.data.user);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching user:', error);
       logout();
-    } finally {
       setLoading(false);
     }
   };
+
+  // Initialize auth on mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        // Set token first
+        setToken(storedToken);
+        // Set axios header immediately
+        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        // Then fetch user
+        try {
+          const response = await axios.get('/api/auth/me');
+          setUser(response.data.user);
+          setLoading(false);
+        } catch (error) {
+          console.error('Error fetching user on init:', error);
+          // Token invalid, clear it
+          localStorage.removeItem('token');
+          setToken(null);
+          delete axios.defaults.headers.common['Authorization'];
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []); // Run only once on mount
+
+  // Update token and localStorage when token changes
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
 
   const login = async (username, password) => {
     try {
@@ -88,13 +124,6 @@ export const AuthProvider = ({ children }) => {
       console.error('Register error:', error);
       return { success: false, error: error.response?.data?.detail || 'Registration failed' };
     }
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   const updateProfile = async (profileData) => {
