@@ -507,31 +507,44 @@ function ProfilePage({ onBack }) {
           </button>
         </div>
 
-        <div className="profile-tabs-container">
-          <div className="profile-tabs">
-            <button
-              className={`profile-tab ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              {t('profile.profile')}
-            </button>
-            <button
-              className={`profile-tab ${activeTab === 'password' ? 'active' : ''}`}
-              onClick={() => setActiveTab('password')}
-            >
-              {t('profile.password')}
-            </button>
-            <button
-              className={`profile-tab ${activeTab === 'llm' ? 'active' : ''}`}
-              onClick={() => setActiveTab('llm')}
-            >
-              {t('profile.llmProviders')}
-            </button>
+        <div className="profile-main-layout">
+          <div className="profile-tabs-container">
+            <div className="profile-tabs">
+              <button
+                className={`profile-tab ${activeTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveTab('profile')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>{t('profile.profile')}</span>
+              </button>
+              <button
+                className={`profile-tab ${activeTab === 'password' ? 'active' : ''}`}
+                onClick={() => setActiveTab('password')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>{t('profile.password')}</span>
+              </button>
+              <button
+                className={`profile-tab ${activeTab === 'llm' ? 'active' : ''}`}
+                onClick={() => setActiveTab('llm')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <span>{t('profile.llmProviders')}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="profile-content-wrapper">
-          <div className="profile-main-layout">
+          <div className="profile-content-wrapper">
             <div className="profile-content">
               {activeTab === 'profile' && (
                 <form onSubmit={handleProfileUpdate} className="profile-form">

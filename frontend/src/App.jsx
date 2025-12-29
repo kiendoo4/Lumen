@@ -96,11 +96,13 @@ function AuthScreen() {
         <div className="auth-left">
           <div className="auth-hero">
             <div className="auth-hero-image-wrapper">
-              <img src="/image.png" alt="Research Agent" className="auth-hero-image" />
+              <img src="/intro-image copy.png" alt="Lumen" className="auth-hero-image" />
             </div>
             <div className="auth-hero-content">
-              <h1>Research Agent</h1>
-              <p className="auth-hero-subtitle">Conversational Research Assistant with Structured Reasoning</p>
+              <h1>Lumen</h1>
+              <p className="auth-hero-subtitle">
+                <span className="auth-hero-subtitle-line">Research assistant</span>
+              </p>
             </div>
           </div>
         </div>
@@ -293,7 +295,7 @@ function PublicRoute({ children }) {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/', { replace: true });
+      navigate('/chat', { replace: true });
     }
   }, [loading, user, navigate]);
 
@@ -323,7 +325,7 @@ function ChatPage() {
 
 function ProfilePageRoute() {
   const navigate = useNavigate();
-  return <ProfilePage onBack={() => navigate('/')} />;
+  return <ProfilePage onBack={() => navigate('/chat')} />;
 }
 
 function AppContent() {
@@ -339,12 +341,13 @@ function AppContent() {
           <ProfilePageRoute />
         </ProtectedRoute>
       } />
-      <Route path="/" element={
+      <Route path="/chat" element={
         <ProtectedRoute>
           <ChatPage />
         </ProtectedRoute>
       } />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to="/chat" replace />} />
+      <Route path="*" element={<Navigate to="/chat" replace />} />
     </Routes>
   );
 }

@@ -251,3 +251,22 @@ async def delete_source(
     db.commit()
     return {"message": "Source deleted"}
 
+@router.delete("/{dialog_id}")
+async def delete_dialog(
+    dialog_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify ownership
+    dialog = db.query(Dialog).join(Conversation).filter(
+        Dialog.id == dialog_id,
+        Conversation.user_id == current_user["userId"]
+    ).first()
+    
+    if not dialog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dialog not found")
+    
+    db.delete(dialog)
+    db.commit()
+    return {"message": "Dialog deleted"}
+

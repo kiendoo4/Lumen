@@ -6,6 +6,8 @@ import Sidebar from './Sidebar';
 import DialogSettingsModal from './DialogSettingsModal';
 import CreateConversationModal from './CreateConversationModal';
 import ConversationSettingsModal from './ConversationSettingsModal';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
+import DialogSearchModal from './DialogSearchModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -23,6 +25,8 @@ function ChatInterface({ onProfileClick }) {
   const [isDialogSettingsOpen, setIsDialogSettingsOpen] = useState(false);
   const [isConversationSettingsOpen, setIsConversationSettingsOpen] = useState(false);
   const [selectedConversationForSettings, setSelectedConversationForSettings] = useState(null);
+  const [isDialogSearchOpen, setIsDialogSearchOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, type: null, id: null, name: null, conversationId: null });
   const [context, setContext] = useState({
     papers: []
   });
@@ -124,10 +128,12 @@ function ChatInterface({ onProfileClick }) {
   const handleConversationCreated = async (data) => {
     const { conversation, dialog } = data;
     await loadConversations();
+    // Set selected conversation and dialog to open the newly created dialog
     setSelectedConversationId(conversation.id);
     setSelectedDialogId(dialog.id);
     setMessages([]);
     setIsCreateConversationModalOpen(false);
+    // loadDialogData will be called automatically via useEffect when selectedDialogId changes
   };
 
   const handleCreateDialog = async (conversationId) => {
@@ -173,13 +179,36 @@ function ChatInterface({ onProfileClick }) {
     setSelectedDialogId(dialogId);
   };
 
-  const handleDeleteConversation = async (conversationId) => {
-    if (window.confirm(t('sidebar.conversations') + ' will be deleted')) {
-      try {
-        await axios.delete(`/api/conversations/${conversationId}`);
+  const handleDeleteConversation = (conversationId) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    setDeleteConfirmation({
+      isOpen: true,
+      type: 'conversation',
+      id: conversationId,
+      name: conversation?.title || '',
+      conversationId: null
+    });
+  };
+
+  const handleDeleteDialog = (conversationId, dialogId) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    const dialog = conversation?.dialogs?.find(d => d.id === dialogId);
+    setDeleteConfirmation({
+      isOpen: true,
+      type: 'dialog',
+      id: dialogId,
+      name: dialog?.title || '',
+      conversationId: conversationId
+    });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      if (deleteConfirmation.type === 'conversation') {
+        await axios.delete(`/api/conversations/${deleteConfirmation.id}`);
         await loadConversations();
-        if (selectedConversationId === conversationId) {
-          const remaining = (conversations || []).filter(c => c.id !== conversationId);
+        if (selectedConversationId === deleteConfirmation.id) {
+          const remaining = (conversations || []).filter(c => c.id !== deleteConfirmation.id);
           if (remaining.length > 0) {
             handleSelectConversation(remaining[0].id);
           } else {
@@ -188,41 +217,30 @@ function ChatInterface({ onProfileClick }) {
             setMessages([]);
           }
         }
-      } catch (error) {
-        console.error('Error deleting conversation:', error);
-      }
-    }
-  };
-
-  const handleDeleteDialog = async (conversationId, dialogId) => {
-    if (window.confirm(t('sidebar.dialogs') + ' will be deleted')) {
-      // TODO: Implement delete dialog API
-      await loadConversations();
-      if (selectedDialogId === dialogId) {
-        const conversation = (conversations || []).find(c => c.id === conversationId);
-        if (conversation && conversation.dialogs && conversation.dialogs.length > 1) {
-          const otherDialog = conversation.dialogs.find(d => d.id !== dialogId);
-          if (otherDialog) {
-            handleSelectDialog(conversationId, otherDialog.id);
+      } else if (deleteConfirmation.type === 'dialog') {
+        await axios.delete(`/api/dialogs/${deleteConfirmation.id}`);
+        await loadConversations();
+        if (selectedDialogId === deleteConfirmation.id) {
+          const conversation = (conversations || []).find(c => c.id === deleteConfirmation.conversationId);
+          if (conversation && conversation.dialogs && conversation.dialogs.length > 1) {
+            const otherDialog = conversation.dialogs.find(d => d.id !== deleteConfirmation.id);
+            if (otherDialog) {
+              handleSelectDialog(deleteConfirmation.conversationId, otherDialog.id);
+            }
+          } else {
+            setSelectedDialogId(null);
+            setMessages([]);
           }
-        } else {
-          setSelectedDialogId(null);
-          setMessages([]);
         }
       }
+      setDeleteConfirmation({ isOpen: false, type: null, id: null, name: null, conversationId: null });
+    } catch (error) {
+      console.error('Error deleting:', error);
     }
   };
 
-  const handleSearch = (query) => {
-    if (query.trim() && conversations) {
-      const filtered = conversations.filter(c => 
-        c.title.toLowerCase().includes(query.toLowerCase()) ||
-        (c.dialogs && c.dialogs.some(d => d.title.toLowerCase().includes(query.toLowerCase())))
-      );
-      setConversations(filtered);
-    } else {
-      loadConversations();
-    }
+  const handleOpenDialogSearch = () => {
+    setIsDialogSearchOpen(true);
   };
 
   const handleSendMessage = async (text, files = []) => {
@@ -388,10 +406,10 @@ function ChatInterface({ onProfileClick }) {
           onSelectDialog={handleSelectDialog}
           onCreateConversation={handleCreateConversation}
           onCreateDialog={handleCreateDialog}
-          onSearch={handleSearch}
           onDeleteConversation={handleDeleteConversation}
           onDeleteDialog={handleDeleteDialog}
           onOpenConversationSettings={handleOpenConversationSettings}
+          onOpenDialogSearch={handleOpenDialogSearch}
         />
         <div className="chat-main">
           <MessageList 
@@ -399,10 +417,13 @@ function ChatInterface({ onProfileClick }) {
             isLoading={isLoading}
             messagesEndRef={messagesEndRef}
           />
-          <InputArea 
-            onSendMessage={handleSendMessage}
-            disabled={isLoading}
-          />
+          {selectedDialogId && (
+            <InputArea 
+              onSendMessage={handleSendMessage}
+              disabled={isLoading}
+              isModalOpen={isCreateConversationModalOpen || isConversationSettingsOpen || isDialogSearchOpen || deleteConfirmation.isOpen}
+            />
+          )}
         </div>
       </div>
       <DialogSettingsModal
@@ -435,6 +456,19 @@ function ChatInterface({ onProfileClick }) {
         conversationId={selectedConversationForSettings?.id}
         conversation={selectedConversationForSettings}
         onUpdate={handleConversationUpdate}
+      />
+      <DeleteConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, name: null, conversationId: null })}
+        onConfirm={confirmDelete}
+        type={deleteConfirmation.type}
+        name={deleteConfirmation.name}
+      />
+      <DialogSearchModal
+        isOpen={isDialogSearchOpen}
+        onClose={() => setIsDialogSearchOpen(false)}
+        conversations={conversations}
+        onSelectDialog={handleSelectDialog}
       />
     </div>
   );

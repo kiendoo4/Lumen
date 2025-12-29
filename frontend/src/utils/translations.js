@@ -1,8 +1,8 @@
 export const translations = {
   en: {
     // Header
-    'app.title': 'Research Agent',
-    'app.subtitle': 'Conversational Research Assistant with Structured Reasoning',
+    'app.title': 'Lumen',
+    'app.subtitle': 'Research assistant with structured reasoning',
     
     // Sidebar
     'sidebar.conversations': 'Conversations',
@@ -14,6 +14,17 @@ export const translations = {
     'sidebar.noConversations': 'No conversations yet',
     'sidebar.noDialogs': 'No dialogs yet',
     'sidebar.settings': 'Settings',
+    'sidebar.deleteConversation': 'Delete Conversation',
+    'sidebar.deleteDialog': 'Delete Dialog',
+    'sidebar.searchDialogs': 'Search Dialogs',
+    
+    // Dialog Search
+    'dialogSearch.title': 'Search Dialogs',
+    'dialogSearch.placeholder': 'Search dialogs...',
+    'dialogSearch.noResults': 'No dialogs found',
+    
+    // Header
+    'header.profile': 'Profile',
     
     // Context Panel
     'context.title': 'Research Context',
@@ -35,15 +46,17 @@ export const translations = {
     // Chat
     'chat.placeholder': 'Ask a research question...',
     'chat.hint': 'Press Enter to send, Shift+Enter for new line',
-    'chat.empty.title': 'Welcome to Research Agent',
+    'chat.attachFile': 'Attach file',
+    'chat.send': 'Send message',
+    'chat.empty.title': 'Welcome to Lumen',
     'chat.empty.description': 'Ask questions about research papers, analyze methodologies, or compare findings.',
     'chat.empty.examples': 'Example questions:',
-    'chat.loading': 'Research Agent is thinking...',
+    'chat.loading': 'Lumen is thinking...',
     'chat.error': 'Sorry, there was an error processing your request.',
     
     // Message
     'message.you': 'You',
-    'message.agent': 'Research Agent',
+    'message.agent': 'Lumen',
     'message.reasoning': 'Reasoning Steps:',
     'message.confidence': 'Confidence:',
     'message.sources': 'Sources:',
@@ -107,6 +120,7 @@ export const translations = {
     
     // Profile
     'profile.title': 'Settings',
+    'profile.settings': 'Settings',
     'profile.profile': 'Profile',
     'profile.password': 'Password',
     'profile.llmProviders': 'LLM Providers',
@@ -160,12 +174,20 @@ export const translations = {
     'createConversation.openingGreeting': 'Opening greeting',
     'createConversation.openingGreetingPlaceholder': 'Initial greeting message',
     'createConversation.modelSettings': 'Model Settings',
+    'createConversation.advancedSettings': 'Advanced Settings',
     'createConversation.create': 'Create Conversation',
     'createConversation.createError': 'Failed to create conversation',
+    
+    // Delete Confirmation
+    'deleteConfirmation.title': 'Confirm Deletion',
+    'deleteConfirmation.conversationMessage': 'Are you sure you want to delete the conversation "{name}"?',
+    'deleteConfirmation.dialogMessage': 'Are you sure you want to delete the dialog "{name}"?',
+    'deleteConfirmation.warning': 'This action cannot be undone. All messages and data will be permanently deleted.',
+    'deleteConfirmation.delete': 'Delete',
   },
   vi: {
     // Header
-    'app.title': 'Research Agent',
+    'app.title': 'Lumen',
     'app.subtitle': 'Trợ lý Nghiên cứu Hội thoại với Suy luận Có cấu trúc',
     
     // Sidebar
@@ -178,6 +200,17 @@ export const translations = {
     'sidebar.noConversations': 'Chưa có cuộc trò chuyện nào',
     'sidebar.noDialogs': 'Chưa có hội thoại nào',
     'sidebar.settings': 'Cài đặt',
+    'sidebar.deleteConversation': 'Xóa Cuộc trò chuyện',
+    'sidebar.deleteDialog': 'Xóa Hội thoại',
+    'sidebar.searchDialogs': 'Tìm kiếm Hội thoại',
+    
+    // Dialog Search
+    'dialogSearch.title': 'Tìm kiếm Hội thoại',
+    'dialogSearch.placeholder': 'Tìm kiếm hội thoại...',
+    'dialogSearch.noResults': 'Không tìm thấy hội thoại',
+    
+    // Header
+    'header.profile': 'Hồ sơ',
     
     // Context Panel
     'context.title': 'Ngữ cảnh Nghiên cứu',
@@ -199,15 +232,17 @@ export const translations = {
     // Chat
     'chat.placeholder': 'Đặt câu hỏi nghiên cứu...',
     'chat.hint': 'Nhấn Enter để gửi, Shift+Enter để xuống dòng',
-    'chat.empty.title': 'Chào mừng đến Research Agent',
+    'chat.attachFile': 'Đính kèm tệp',
+    'chat.send': 'Gửi tin nhắn',
+    'chat.empty.title': 'Chào mừng đến Lument',
     'chat.empty.description': 'Đặt câu hỏi về research papers, phân tích phương pháp, hoặc so sánh kết quả.',
     'chat.empty.examples': 'Câu hỏi ví dụ:',
-    'chat.loading': 'Research Agent đang suy nghĩ...',
+    'chat.loading': 'Lumen đang suy nghĩ...',
     'chat.error': 'Xin lỗi, đã có lỗi xảy ra khi xử lý yêu cầu của bạn.',
     
     // Message
     'message.you': 'Bạn',
-    'message.agent': 'Research Agent',
+    'message.agent': 'Lumen',
     'message.reasoning': 'Các bước Suy luận:',
     'message.confidence': 'Độ tin cậy:',
     'message.sources': 'Nguồn:',
@@ -271,6 +306,7 @@ export const translations = {
     
     // Profile
     'profile.title': 'Cài đặt Hồ sơ',
+    'profile.settings': 'Cài đặt',
     'profile.profile': 'Hồ sơ',
     'profile.password': 'Mật khẩu',
     'profile.llmProviders': 'Nhà cung cấp LLM',
@@ -324,8 +360,16 @@ export const translations = {
     'createConversation.openingGreeting': 'Lời chào mở đầu',
     'createConversation.openingGreetingPlaceholder': 'Tin nhắn chào ban đầu',
     'createConversation.modelSettings': 'Cài đặt Mô hình',
+    'createConversation.advancedSettings': 'Cài đặt Nâng cao',
     'createConversation.create': 'Tạo Cuộc trò chuyện',
     'createConversation.createError': 'Tạo cuộc trò chuyện thất bại',
+    
+    // Delete Confirmation
+    'deleteConfirmation.title': 'Xác nhận Xóa',
+    'deleteConfirmation.conversationMessage': 'Bạn có chắc muốn xóa cuộc trò chuyện "{name}"?',
+    'deleteConfirmation.dialogMessage': 'Bạn có chắc muốn xóa hội thoại "{name}"?',
+    'deleteConfirmation.warning': 'Hành động này không thể hoàn tác. Tất cả tin nhắn và dữ liệu sẽ bị xóa vĩnh viễn.',
+    'deleteConfirmation.delete': 'Xóa',
   }
 };
 

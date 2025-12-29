@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import Tooltip from './Tooltip';
 import './InputArea.css';
 
-function InputArea({ onSendMessage, onFileUpload, disabled }) {
+function InputArea({ onSendMessage, onFileUpload, disabled, isModalOpen }) {
   const { t } = useLanguage();
   const [input, setInput] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -47,6 +48,10 @@ function InputArea({ onSendMessage, onFileUpload, disabled }) {
     }
   }, [input]);
 
+  if (isModalOpen) {
+    return null;
+  }
+
   return (
     <div className="input-area">
       {attachedFiles.length > 0 && (
@@ -70,17 +75,18 @@ function InputArea({ onSendMessage, onFileUpload, disabled }) {
       )}
       <form onSubmit={handleSubmit} className="input-form">
         <div className="input-wrapper">
-          <button
-            type="button"
-            className="input-attach-button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
-            title="Attach file"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-            </svg>
-          </button>
+          <Tooltip text={t('chat.attachFile') || 'Attach file'} position="top">
+            <button
+              type="button"
+              className="input-attach-button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+            </button>
+          </Tooltip>
           <input
             ref={fileInputRef}
             type="file"
@@ -99,25 +105,27 @@ function InputArea({ onSendMessage, onFileUpload, disabled }) {
             rows={1}
             className="input-textarea"
           />
-          <button
-            type="submit"
-            disabled={(!input.trim() && attachedFiles.length === 0) || disabled}
-            className="input-send-button"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <Tooltip text={t('chat.send') || 'Send message'} position="top">
+            <button
+              type="submit"
+              disabled={(!input.trim() && attachedFiles.length === 0) || disabled}
+              className="input-send-button"
             >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </Tooltip>
         </div>
         <div className="input-hint">
           {t('chat.hint')}

@@ -28,6 +28,7 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('dialog'); // 'dialog' or 'model'
+  const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -141,6 +142,7 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
     setSelectedProvider('openai');
     setSelectedModel('gpt-4');
     setFreedom(0.5);
+    setIsAdvancedSettingsOpen(false);
     setTemperature(0.7);
     setTopP(0.9);
     setPresencePenalty(0.0);
@@ -233,14 +235,6 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
             {activeTab === 'dialog' && (
               <div className="create-conversation-tab-content">
                 <div className="create-conversation-section">
-                  <h3 className="create-conversation-section-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    {t('createConversation.dialogConfig')}
-                  </h3>
-                  <p className="create-conversation-section-description">{t('createConversation.dialogConfigDescription')}</p>
-              
               <div className="create-conversation-field">
                 <label>
                   {t('createConversation.name')} <span className="required">*</span>
@@ -347,17 +341,7 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
             {activeTab === 'model' && (
               <div className="create-conversation-tab-content">
                 <div className="create-conversation-section">
-                  <h3 className="create-conversation-section-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                      <line x1="8" y1="21" x2="16" y2="21"></line>
-                      <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                    {t('createConversation.modelConfig')}
-                  </h3>
-                  <p className="create-conversation-section-description">{t('createConversation.modelConfigDescription')}</p>
-              
-              {/* LLM Provider and Model Selection */}
+                  {/* LLM Provider and Model Selection */}
               <div className="create-conversation-field">
                 <label>{t('settings.llm.provider')}</label>
                 <select
@@ -398,106 +382,133 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                 )}
               </div>
               
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.freedom')}</label>
-                  <span className="create-conversation-value">{freedom.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={freedom}
-                  onChange={(e) => setFreedom(parseFloat(e.target.value))}
+              {/* Advanced Settings Section */}
+              <div className="create-conversation-advanced-settings">
+                <button
+                  type="button"
+                  className="create-conversation-advanced-toggle"
+                  onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
                   disabled={loading}
-                  className="create-conversation-slider"
-                />
-              </div>
+                >
+                  <span>{t('createConversation.advancedSettings')}</span>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={isAdvancedSettingsOpen ? 'expanded' : ''}
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                
+                {isAdvancedSettingsOpen && (
+                  <div className="create-conversation-advanced-content">
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.freedom')}</label>
+                        <span className="create-conversation-value">{freedom.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={freedom}
+                        onChange={(e) => setFreedom(parseFloat(e.target.value))}
+                        disabled={loading}
+                        className="create-conversation-slider"
+                      />
+                    </div>
 
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.temperature')}</label>
-                  <span className="create-conversation-value">{temperature.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.01"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  disabled={loading}
-                  className="create-conversation-slider"
-                />
-              </div>
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.temperature')}</label>
+                        <span className="create-conversation-value">{temperature.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.01"
+                        value={temperature}
+                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                        disabled={loading}
+                        className="create-conversation-slider"
+                      />
+                    </div>
 
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.topP')}</label>
-                  <span className="create-conversation-value">{topP.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={topP}
-                  onChange={(e) => setTopP(parseFloat(e.target.value))}
-                  disabled={loading}
-                  className="create-conversation-slider"
-                />
-              </div>
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.topP')}</label>
+                        <span className="create-conversation-value">{topP.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={topP}
+                        onChange={(e) => setTopP(parseFloat(e.target.value))}
+                        disabled={loading}
+                        className="create-conversation-slider"
+                      />
+                    </div>
 
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.presencePenalty')}</label>
-                  <span className="create-conversation-value">{presencePenalty.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.01"
-                  value={presencePenalty}
-                  onChange={(e) => setPresencePenalty(parseFloat(e.target.value))}
-                  disabled={loading}
-                  className="create-conversation-slider"
-                />
-              </div>
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.presencePenalty')}</label>
+                        <span className="create-conversation-value">{presencePenalty.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-2"
+                        max="2"
+                        step="0.01"
+                        value={presencePenalty}
+                        onChange={(e) => setPresencePenalty(parseFloat(e.target.value))}
+                        disabled={loading}
+                        className="create-conversation-slider"
+                      />
+                    </div>
 
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.frequencyPenalty')}</label>
-                  <span className="create-conversation-value">{frequencyPenalty.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.01"
-                  value={frequencyPenalty}
-                  onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))}
-                  disabled={loading}
-                  className="create-conversation-slider"
-                />
-              </div>
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.frequencyPenalty')}</label>
+                        <span className="create-conversation-value">{frequencyPenalty.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-2"
+                        max="2"
+                        step="0.01"
+                        value={frequencyPenalty}
+                        onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))}
+                        disabled={loading}
+                        className="create-conversation-slider"
+                      />
+                    </div>
 
-              <div className="create-conversation-field">
-                <div className="create-conversation-field-header">
-                  <label>{t('settings.advanced.maxTokens')}</label>
-                  <span className="create-conversation-value">{maxTokens}</span>
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  max="32000"
-                  step="1"
-                  value={maxTokens}
-                  onChange={(e) => setMaxTokens(parseInt(e.target.value) || 2000)}
-                  disabled={loading}
-                  className="create-conversation-input"
-                />
+                    <div className="create-conversation-field">
+                      <div className="create-conversation-field-header">
+                        <label>{t('settings.advanced.maxTokens')}</label>
+                        <span className="create-conversation-value">{maxTokens}</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        max="32000"
+                        step="1"
+                        value={maxTokens}
+                        onChange={(e) => setMaxTokens(parseInt(e.target.value) || 2000)}
+                        disabled={loading}
+                        className="create-conversation-input"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
                 </div>
               </div>

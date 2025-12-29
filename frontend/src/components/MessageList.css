@@ -1,8 +1,19 @@
 .message-list {
   flex: 1;
   overflow-y: auto;
-  background-color: var(--bg-secondary);
+  background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
   padding: 2rem;
+  position: relative;
+}
+
+.message-list::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-color), transparent);
 }
 
 .message-list-content {
@@ -10,7 +21,8 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
+  padding-bottom: 1rem;
 }
 
 .empty-state {

@@ -1,6 +1,6 @@
-# Research Agent Backend (Python)
+# Lumen Backend (Python)
 
-FastAPI backend for Research Agent application.
+FastAPI backend for Lumen application.
 
 ## Setup
 

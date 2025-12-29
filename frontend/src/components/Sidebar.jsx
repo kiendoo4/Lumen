@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import Tooltip from './Tooltip';
 import './Sidebar.css';
 
 function Sidebar({ 
@@ -13,17 +14,22 @@ function Sidebar({
   onSearch,
   onDeleteConversation,
   onDeleteDialog,
-  onOpenConversationSettings
+  onOpenConversationSettings,
+  onOpenDialogSearch
 }) {
   const { t } = useLanguage();
-  const [searchQuery, setSearchQuery] = useState('');
   const [expandedConversations, setExpandedConversations] = useState(new Set());
 
-  const handleSearch = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    onSearch(query);
-  };
+  // Auto-expand conversation when it's selected and has a selected dialog
+  useEffect(() => {
+    if (selectedConversationId && selectedDialogId) {
+      setExpandedConversations(prev => {
+        const next = new Set(prev);
+        next.add(selectedConversationId);
+        return next;
+      });
+    }
+  }, [selectedConversationId, selectedDialogId]);
 
   const toggleConversation = (id) => {
     setExpandedConversations(prev => {
@@ -37,47 +43,44 @@ function Sidebar({
     });
   };
 
-  const filteredConversations = searchQuery
-    ? conversations.filter(c => 
-        c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.dialogs.some(d => d.title.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : conversations;
-
   return (
     <div className="sidebar">
       <div className="sidebar-header">
         <h2>{t('sidebar.conversations')}</h2>
-        <button 
-          className="sidebar-new-button"
-          onClick={onCreateConversation}
-          title={t('sidebar.newConversation')}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div className="sidebar-search">
-        <input
-          type="text"
-          placeholder={t('sidebar.searchPlaceholder')}
-          value={searchQuery}
-          onChange={handleSearch}
-          className="sidebar-search-input"
-        />
+        <div className="sidebar-header-actions">
+          <Tooltip text={t('sidebar.searchDialogs')} position="bottom">
+            <button 
+              className="sidebar-new-button"
+              onClick={onOpenDialogSearch}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip text={t('sidebar.newConversation')} position="bottom">
+            <button 
+              className="sidebar-new-button"
+              onClick={onCreateConversation}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="sidebar-content">
-        {filteredConversations.length === 0 ? (
+        {conversations.length === 0 ? (
           <div className="sidebar-empty">
             <p>{t('sidebar.noConversations')}</p>
           </div>
         ) : (
           <div className="sidebar-conversations">
-            {filteredConversations.map(conversation => (
+            {conversations.map(conversation => (
               <div key={conversation.id} className="sidebar-conversation-item">
                 <div 
                   className={`sidebar-conversation-header ${
@@ -88,56 +91,60 @@ function Sidebar({
                     onSelectConversation(conversation.id);
                   }}
                 >
-                  {conversation.avatar_url && (
-                    <img 
-                      src={conversation.avatar_url} 
-                      alt={conversation.title}
-                      className="sidebar-conversation-avatar"
-                    />
-                  )}
+                  <img 
+                    src={conversation.avatar_url || '/images/chatbot.png'} 
+                    alt={conversation.title}
+                    className="sidebar-conversation-avatar"
+                    onError={(e) => {
+                      e.target.src = '/images/chatbot.png';
+                    }}
+                  />
                   <span className="sidebar-conversation-title">{conversation.title}</span>
                   <div className="sidebar-conversation-actions">
-                    <button
-                      className="sidebar-action-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCreateDialog(conversation.id);
-                      }}
-                      title={t('sidebar.newDialog')}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                    </button>
-                    {onOpenConversationSettings && (
+                    <Tooltip text={t('sidebar.newDialog')} position="bottom">
                       <button
                         className="sidebar-action-button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onOpenConversationSettings(conversation.id);
+                          onCreateDialog(conversation.id);
                         }}
-                        title={t('sidebar.settings')}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="3"></circle>
-                          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
                       </button>
+                    </Tooltip>
+                    {onOpenConversationSettings && (
+                      <Tooltip text={t('sidebar.settings')} position="bottom">
+                        <button
+                          className="sidebar-action-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenConversationSettings(conversation.id);
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                          </svg>
+                        </button>
+                      </Tooltip>
                     )}
-                    <button
-                      className="sidebar-action-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteConversation(conversation.id);
-                      }}
-                      title="Delete"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
+                    <Tooltip text={t('sidebar.deleteConversation')} position="bottom">
+                      <button
+                        className="sidebar-action-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteConversation(conversation.id);
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
                 {expandedConversations.has(conversation.id) && (
@@ -155,28 +162,22 @@ function Sidebar({
                           }`}
                           onClick={() => onSelectDialog(conversation.id, dialog.id)}
                         >
-                          <img 
-                            src="/images/chatbot.png" 
-                            alt={dialog.title}
-                            className="sidebar-dialog-avatar"
-                            onError={(e) => {
-                              e.target.src = '/images/chatbot.png';
-                            }}
-                          />
+                          <div className="sidebar-dialog-indicator"></div>
                           <span className="sidebar-dialog-title">{dialog.title}</span>
-                          <button
-                            className="sidebar-dialog-delete"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteDialog(conversation.id, dialog.id);
-                            }}
-                            title="Delete"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <line x1="18" y1="6" x2="6" y2="18"></line>
-                              <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                          </button>
+                          <Tooltip text={t('sidebar.deleteDialog')} position="left">
+                            <button
+                              className="sidebar-dialog-delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteDialog(conversation.id, dialog.id);
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </Tooltip>
                         </div>
                       ))
                     )}
