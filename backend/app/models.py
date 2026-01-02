@@ -55,6 +55,14 @@ class Conversation(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
     avatar_url = Column(String(500))
+    # Config belongs to conversation, not individual dialogs
+    llm_model = Column(String(100), default="gpt-4")
+    freedom = Column(DECIMAL(3, 2), default=0.50)
+    temperature = Column(DECIMAL(3, 2), default=0.70)
+    top_p = Column(DECIMAL(3, 2), default=0.90)
+    presence_penalty = Column(DECIMAL(3, 2), default=0.00)
+    frequency_penalty = Column(DECIMAL(3, 2), default=0.00)
+    max_tokens = Column(Integer, default=2000)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     
@@ -67,6 +75,7 @@ class Dialog(Base):
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
+    is_pinned = Column(Integer, default=0, nullable=False)  # 0 = not pinned, 1 = pinned
     llm_model = Column(String(100), default="gpt-4")
     freedom = Column(DECIMAL(3, 2), default=0.50)
     temperature = Column(DECIMAL(3, 2), default=0.70)

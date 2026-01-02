@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import ChatInterface from './components/ChatInterface';
-import ProfilePage from './components/ProfilePage';
+import ChatInterface from './components/chat/ChatInterface';
+import ProfilePage from './components/profile/ProfilePage';
 import './App.css';
 
 function AuthScreen() {
@@ -271,10 +271,12 @@ function AuthScreen() {
 }
 
 function ProtectedRoute({ children }) {
-  const { loading, user } = useAuth();
-  const navigate = useNavigate();
+  const { loading, user, initialized } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
+  // Trong giai đoạn auth đang khởi tạo, chỉ hiển thị loading, KHÔNG redirect
+  // Điều này đảm bảo khi refresh, route hiện tại được giữ nguyên
+  if (loading || !initialized) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">Loading...</div>
@@ -282,24 +284,37 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // Kiểm tra token từ localStorage để đảm bảo đồng bộ
+  const hasToken = !!localStorage.getItem('token');
+
+  // Nếu có token nhưng chưa có user (đang đợi /api/auth/me), vẫn đợi
+  // CHỈ redirect khi CHẮC CHẮN không có user (không có token VÀ không có user)
+  if (!user && !hasToken) {
+    // Lưu route hiện tại để redirect lại sau khi login
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
+  // Nếu có token nhưng chưa có user, đợi thêm (có thể API call đang trong progress)
+  // Tuy nhiên, nếu initialized=true và loading=false, điều này không nên xảy ra
+  // Nhưng để an toàn, vẫn kiểm tra
+  if (hasToken && !user) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+
+  // Có user thì render bình thường, đứng yên tại route hiện tại
   return children;
 }
 
 function PublicRoute({ children }) {
-  const { loading, user } = useAuth();
-  const navigate = useNavigate();
+  const { loading, user, initialized } = useAuth();
+  const location = useLocation();
 
-  useEffect(() => {
-    if (!loading && user) {
-      navigate('/chat', { replace: true });
-    }
-  }, [loading, user, navigate]);
-
-  if (loading) {
+  // Auth đang khởi tạo -> chỉ loading
+  if (loading || !initialized) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">Loading...</div>
@@ -307,10 +322,13 @@ function PublicRoute({ children }) {
     );
   }
 
-  if (user) {
-    return null; // Will redirect via useEffect
+  // Nếu đã đăng nhập và đang ở /login thì redirect về route ban đầu hoặc /chat
+  if (user && location.pathname === '/login') {
+    const redirectTo = new URLSearchParams(location.search).get('redirect') || '/chat';
+    return <Navigate to={redirectTo} replace />;
   }
 
+  // Còn lại thì render bình thường
   return children;
 }
 
@@ -326,6 +344,28 @@ function ChatPage() {
 function ProfilePageRoute() {
   const navigate = useNavigate();
   return <ProfilePage onBack={() => navigate('/chat')} />;
+}
+
+function NotFoundRoute() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  
+  // Don't redirect if we're still loading or if user is authenticated
+  // This prevents redirecting away from valid routes during auth initialization
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+  
+  // Only redirect to /chat if user is authenticated, otherwise go to login
+  if (user) {
+    return <Navigate to="/chat" replace />;
+  }
+  
+  return <Navigate to="/login" replace />;
 }
 
 function AppContent() {
@@ -347,7 +387,7 @@ function AppContent() {
         </ProtectedRoute>
       } />
       <Route path="/" element={<Navigate to="/chat" replace />} />
-      <Route path="*" element={<Navigate to="/chat" replace />} />
+      <Route path="*" element={<NotFoundRoute />} />
     </Routes>
   );
 }

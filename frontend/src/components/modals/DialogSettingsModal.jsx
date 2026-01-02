@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import axios from 'axios';
 import './DialogSettingsModal.css';
 
@@ -36,7 +36,8 @@ function DialogSettingsModal({ isOpen, onClose, settings, onSave, context, onAdd
   const fetchModelCards = async () => {
     try {
       const response = await axios.get('/api/models/');
-      setModelCards(response.data.models);
+      // API returns { openai: [...], gemini: [...], ollama: [...] }
+      setModelCards(response.data);
     } catch (error) {
       console.error('Error fetching model cards:', error);
     }
@@ -124,10 +125,15 @@ function DialogSettingsModal({ isOpen, onClose, settings, onSave, context, onAdd
               <select
                 value={selectedProvider}
                 onChange={(e) => {
-                  setSelectedProvider(e.target.value);
-                  // Auto-select first model of provider
-                  if (modelCards[e.target.value] && modelCards[e.target.value].length > 0) {
-                    handleChange('llm', modelCards[e.target.value][0].id);
+                  const provider = e.target.value;
+                  setSelectedProvider(provider);
+                  // Auto-select first model of provider and apply its max_tokens
+                  if (modelCards[provider] && modelCards[provider].length > 0) {
+                    const firstModel = modelCards[provider][0];
+                    handleChange('llm', firstModel.id);
+                    if (firstModel.max_tokens) {
+                      handleChange('maxTokens', firstModel.max_tokens);
+                    }
                   }
                 }}
                 className="settings-select"
@@ -145,10 +151,35 @@ function DialogSettingsModal({ isOpen, onClose, settings, onSave, context, onAdd
                     <div
                       key={model.id}
                       className={`model-card ${localSettings.llm === model.id ? 'selected' : ''}`}
-                      onClick={() => handleChange('llm', model.id)}
+                      onClick={() => {
+                        handleChange('llm', model.id);
+                        if (model.max_tokens) {
+                          handleChange('maxTokens', model.max_tokens);
+                        }
+                      }}
                     >
-                      <div className="model-card-name">{model.name}</div>
-                      <div className="model-card-description">{model.description}</div>
+                      <div className="model-card-header">
+                        <img
+                          src={
+                            selectedProvider === 'openai'
+                              ? '/images/openai.png'
+                              : selectedProvider === 'gemini'
+                                ? '/images/gemini.png'
+                                : '/images/ollama.png'
+                          }
+                          alt={selectedProvider}
+                          className="model-card-logo"
+                        />
+                        <div className="model-card-title">
+                          <div className="model-card-name">{model.name}</div>
+                          <div className="model-card-provider">
+                            {selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'gemini' ? 'Gemini' : 'Ollama'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="model-card-description">
+                        {model.description}
+                      </div>
                     </div>
                   ))}
                 </div>

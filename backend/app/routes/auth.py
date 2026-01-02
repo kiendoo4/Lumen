@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
-from app.schemas import UserRegister, UserLogin, TokenResponse, UserResponse, PasswordChange, ProfileUpdate
+from app.schemas import UserRegister, UserLogin, TokenResponse, UserResponse, UserInfoResponse, PasswordChange, ProfileUpdate
 from app.utils.auth import verify_password, get_password_hash, create_access_token
 from app.middleware.auth import get_current_user
 from app.utils.minio_client import minio_client, BUCKET_NAME, upload_file
@@ -79,17 +79,19 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
     )
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserInfoResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == current_user["userId"]).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
-    return UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        avatar_url=user.avatar_url
+    return UserInfoResponse(
+        user=UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            avatar_url=user.avatar_url
+        )
     )
 
 @router.put("/profile", response_model=UserResponse)

@@ -1,33 +1,23 @@
 .message-list {
   flex: 1;
   overflow-y: auto;
-  background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
-  padding: 2rem;
-  position: relative;
-}
-
-.message-list::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--border-color), transparent);
+  background: var(--bg-primary);
+  padding: 0rem 2rem;
 }
 
 .message-list-content {
-  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1rem;
+  padding-top: 1.5rem;
   padding-bottom: 1rem;
 }
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 3rem 2rem;
   color: var(--text-secondary);
 }
 
@@ -49,7 +39,7 @@
   max-width: 500px;
   margin: 0 auto;
   background: var(--bg-primary);
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px var(--shadow);
   border: 1px solid var(--border-color);

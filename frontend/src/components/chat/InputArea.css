@@ -65,13 +65,12 @@
 }
 
 .input-form {
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .input-wrapper {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   background: var(--input-bg);
   border: 2px solid var(--border-color);

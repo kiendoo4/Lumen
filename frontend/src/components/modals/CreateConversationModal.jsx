@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import axios from 'axios';
 import './CreateConversationModal.css';
 
@@ -16,6 +16,7 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
   const [modelCards, setModelCards] = useState({});
   const [selectedProvider, setSelectedProvider] = useState('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4');
+  const [enabledProviders, setEnabledProviders] = useState([]);
   
   // Model Settings
   const [freedom, setFreedom] = useState(0.5);
@@ -29,11 +30,14 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('dialog'); // 'dialog' or 'model'
   const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
+  const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchModelCards();
+      fetchEnabledProviders();
     }
   }, [isOpen]);
 
@@ -43,24 +47,54 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
       // Backend returns { openai: [...], gemini: [...], ollama: [...] }
       const models = response.data;
       setModelCards(models);
-      // Set default model based on selected provider
-      if (models[selectedProvider] && models[selectedProvider].length > 0) {
-        setSelectedModel(models[selectedProvider][0].id);
-      }
     } catch (error) {
       console.error('Error fetching model cards:', error);
-      // Fallback to default models
-      const fallbackModels = {
-        openai: [{ id: 'gpt-4', name: 'GPT-4', description: 'Most capable model' }],
-        gemini: [{ id: 'gemini-pro', name: 'Gemini Pro', description: 'Google\'s advanced model' }],
-        ollama: [{ id: 'llama3', name: 'Llama 3', description: 'Latest Llama model' }]
-      };
-      setModelCards(fallbackModels);
-      if (fallbackModels[selectedProvider] && fallbackModels[selectedProvider].length > 0) {
-        setSelectedModel(fallbackModels[selectedProvider][0].id);
-      }
+      // Fallback to empty object
+      setModelCards({});
     }
   };
+
+  const fetchEnabledProviders = async () => {
+    try {
+      const response = await axios.get('/api/llm-providers/');
+      const providers = response.data || [];
+      const names = providers.map(p => p.provider);
+      setEnabledProviders(names);
+    } catch (error) {
+      console.error('Error fetching enabled providers:', error);
+      setEnabledProviders([]);
+    }
+  };
+
+  // Sync selectedProvider với enabledProviders sau khi cả hai đã load
+  useEffect(() => {
+    if (enabledProviders.length > 0 && Object.keys(modelCards).length > 0) {
+      // Nếu selectedProvider không có trong danh sách enabled, chọn provider đầu tiên
+      if (!enabledProviders.includes(selectedProvider)) {
+        const firstProvider = enabledProviders[0];
+        setSelectedProvider(firstProvider);
+        // Reset model về model đầu tiên của provider mới
+        const firstProviderModels = modelCards[firstProvider] || [];
+        if (firstProviderModels.length > 0) {
+          const firstModel = firstProviderModels[0];
+          setSelectedModel(firstModel.id);
+          if (firstModel.max_tokens) {
+            setMaxTokens(firstModel.max_tokens);
+          }
+        }
+      } else {
+        // Nếu provider hợp lệ, đảm bảo model được set đúng
+        const providerModels = modelCards[selectedProvider] || [];
+        if (providerModels.length > 0 && !providerModels.find(m => m.id === selectedModel)) {
+          const firstModel = providerModels[0];
+          setSelectedModel(firstModel.id);
+          if (firstModel.max_tokens) {
+            setMaxTokens(firstModel.max_tokens);
+          }
+        }
+      }
+    }
+  }, [enabledProviders, modelCards, selectedProvider]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -85,38 +119,37 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
 
     setLoading(true);
     try {
-      // Create conversation
+      // Create conversation with dialog settings (backend will automatically create dialog)
       const formData = new FormData();
       formData.append('title', name);
       if (avatar) {
         formData.append('avatar', avatar);
       }
+      // Add dialog settings to form data
+      formData.append('llm_model', selectedModel);
+      formData.append('freedom', freedom.toString());
+      formData.append('temperature', temperature.toString());
+      formData.append('top_p', topP.toString());
+      formData.append('presence_penalty', presencePenalty.toString());
+      formData.append('frequency_penalty', frequencyPenalty.toString());
+      formData.append('max_tokens', maxTokens.toString());
 
       const conversationResponse = await axios.post('/api/conversations/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const conversationId = conversationResponse.data.id;
-
-      // Create first dialog with model settings
-      const dialogResponse = await axios.post(`/api/dialogs/conversation/${conversationId}`, {
-        title: name,
-        llm_model: selectedModel,
-        freedom: freedom,
-        temperature: temperature,
-        top_p: topP,
-        presence_penalty: presencePenalty,
-        frequency_penalty: frequencyPenalty,
-        max_tokens: maxTokens
-      });
+      // Backend automatically creates a dialog, so use the first dialog from the response
+      const dialog = conversationResponse.data.dialogs && conversationResponse.data.dialogs.length > 0
+        ? conversationResponse.data.dialogs[0]
+        : null;
 
       // TODO: Save description, empty_response, opening_greeting to conversation or dialog
       // These fields might need to be added to the backend schema
 
-      if (onCreate) {
+      if (onCreate && dialog) {
         onCreate({
           conversation: conversationResponse.data,
-          dialog: dialogResponse.data
+          dialog: dialog
         });
       }
 
@@ -143,6 +176,8 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
     setSelectedModel('gpt-4');
     setFreedom(0.5);
     setIsAdvancedSettingsOpen(false);
+    setIsProviderDropdownOpen(false);
+    setIsModelDropdownOpen(false);
     setTemperature(0.7);
     setTopP(0.9);
     setPresencePenalty(0.0);
@@ -170,6 +205,27 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // Close dropdowns when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isProviderDropdownOpen || isModelDropdownOpen) {
+        const target = event.target;
+        if (!target.closest('.model-select')) {
+          setIsProviderDropdownOpen(false);
+          setIsModelDropdownOpen(false);
+        }
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, isProviderDropdownOpen, isModelDropdownOpen]);
 
   if (!isOpen) return null;
 
@@ -342,40 +398,190 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
               <div className="create-conversation-tab-content">
                 <div className="create-conversation-section">
                   {/* LLM Provider and Model Selection */}
+              {/* LLM Provider selection (custom dropdown with logos) */}
               <div className="create-conversation-field">
                 <label>{t('settings.llm.provider')}</label>
-                <select
-                  value={selectedProvider}
-                  onChange={(e) => {
-                    setSelectedProvider(e.target.value);
-                    // Auto-select first model of provider
-                    if (modelCards[e.target.value] && modelCards[e.target.value].length > 0) {
-                      setSelectedModel(modelCards[e.target.value][0].id);
-                    }
-                  }}
-                  className="create-conversation-input"
-                  disabled={loading}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="gemini">Gemini</option>
-                  <option value="ollama">Ollama</option>
-                </select>
+                <div className="model-select">
+                  <button
+                    type="button"
+                    className="model-select-trigger"
+                    onClick={() => setIsProviderDropdownOpen(open => !open)}
+                    disabled={loading}
+                  >
+                    <div className="model-select-trigger-content">
+                      <img
+                        src={
+                          selectedProvider === 'openai'
+                            ? '/images/openai.png'
+                            : selectedProvider === 'gemini'
+                              ? '/images/gemini.png'
+                              : '/images/ollama.png'
+                        }
+                        alt={selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'gemini' ? 'Gemini' : 'Ollama'}
+                        className="model-select-trigger-logo"
+                      />
+                      <div className="model-select-trigger-text">
+                        <span className="model-select-trigger-name">
+                          {selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'gemini' ? 'Gemini' : 'Ollama'}
+                        </span>
+                      </div>
+                    </div>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className={isProviderDropdownOpen ? 'expanded' : ''}
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+
+                  {isProviderDropdownOpen && (
+                    <div className="model-select-menu">
+                      {enabledProviders.length > 0 ? (
+                        enabledProviders.map(provider => {
+                          const name =
+                            provider === 'openai'
+                              ? 'OpenAI'
+                              : provider === 'gemini'
+                                ? 'Gemini'
+                                : 'Ollama';
+                          const logo =
+                            provider === 'openai'
+                              ? '/images/openai.png'
+                              : provider === 'gemini'
+                                ? '/images/gemini.png'
+                                : '/images/ollama.png';
+
+                          return (
+                            <div
+                              key={provider}
+                              className={`model-select-option ${
+                                selectedProvider === provider ? 'selected' : ''
+                              }`}
+                              onClick={() => {
+                                setSelectedProvider(provider);
+                                setIsProviderDropdownOpen(false);
+                                const list = modelCards[provider] || [];
+                                if (list.length > 0) {
+                                  setSelectedModel(list[0].id);
+                                  if (list[0].max_tokens) {
+                                    setMaxTokens(list[0].max_tokens);
+                                  }
+                                }
+                              }}
+                            >
+                              <div className="model-select-option-header">
+                                <img
+                                  src={logo}
+                                  alt={name}
+                                  className="model-select-option-logo"
+                                />
+                                <div className="model-select-option-title">
+                                  <div className="model-select-option-name">{name}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="model-select-option disabled">
+                          <div className="model-select-option-title">
+                            <div className="model-select-option-name">
+                              {t('conversationSettings.noProvidersConfigured') || 'No providers configured. Please add providers in Settings.'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="create-conversation-field">
                 <label>{t('settings.llm.model')}</label>
-                {modelCards[selectedProvider] && modelCards[selectedProvider].length > 0 ? (
-                  <div className="create-conversation-model-cards">
-                    {modelCards[selectedProvider].map(model => (
-                      <div
-                        key={model.id}
-                        className={`create-conversation-model-card ${selectedModel === model.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedModel(model.id)}
-                      >
-                        <div className="create-conversation-model-card-name">{model.name}</div>
-                        <div className="create-conversation-model-card-description">{model.description}</div>
+                {!enabledProviders.includes(selectedProvider) ? (
+                  <div className="create-conversation-model-loading">
+                    {t('conversationSettings.providerNotConfigured') || `Configure ${selectedProvider} in Settings before selecting a model.`}
+                  </div>
+                ) : modelCards[selectedProvider] && modelCards[selectedProvider].length > 0 ? (
+                  <div className="model-select">
+                    <button
+                      type="button"
+                      className="model-select-trigger"
+                      onClick={() => setIsModelDropdownOpen(open => !open)}
+                      disabled={loading}
+                    >
+                      <div className="model-select-trigger-content">
+                        <img
+                          src={
+                            selectedProvider === 'openai'
+                              ? '/images/openai.png'
+                              : selectedProvider === 'gemini'
+                                ? '/images/gemini.png'
+                                : '/images/ollama.png'
+                          }
+                          alt={selectedProvider}
+                          className="model-select-trigger-logo"
+                        />
+                        <div className="model-select-trigger-text">
+                          <span className="model-select-trigger-name">
+                            {(modelCards[selectedProvider] || []).find(m => m.id === selectedModel)?.name || selectedModel}
+                          </span>
+                        </div>
                       </div>
-                    ))}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className={isModelDropdownOpen ? 'expanded' : ''}
+                      >
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                    </button>
+
+                    {isModelDropdownOpen && (
+                      <div className="model-select-menu">
+                        {modelCards[selectedProvider].map(model => (
+                          <div
+                            key={model.id}
+                            className={`model-select-option ${
+                              selectedModel === model.id ? 'selected' : ''
+                            }`}
+                            onClick={() => {
+                              setSelectedModel(model.id);
+                              setIsModelDropdownOpen(false);
+                              if (model.max_tokens) {
+                                setMaxTokens(model.max_tokens);
+                              }
+                            }}
+                          >
+                            <div className="model-select-option-header">
+                              <img
+                                src={
+                                  selectedProvider === 'openai'
+                                    ? '/images/openai.png'
+                                    : selectedProvider === 'gemini'
+                                      ? '/images/gemini.png'
+                                      : '/images/ollama.png'
+                                }
+                                alt={selectedProvider}
+                                className="model-select-option-logo"
+                              />
+                              <div className="model-select-option-title">
+                                <div className="model-select-option-name">{model.name}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="create-conversation-model-loading">Loading models...</div>
@@ -499,10 +705,13 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                       <input
                         type="number"
                         min="1"
-                        max="32000"
                         step="1"
                         value={maxTokens}
-                        onChange={(e) => setMaxTokens(parseInt(e.target.value) || 2000)}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 2000;
+                          // Allow any positive number, no max limit
+                          setMaxTokens(value > 0 ? value : 2000);
+                        }}
                         disabled={loading}
                         className="create-conversation-input"
                       />

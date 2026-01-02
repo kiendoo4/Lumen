@@ -28,6 +28,9 @@ class TokenResponse(BaseModel):
     token: str
     user: UserResponse
 
+class UserInfoResponse(BaseModel):
+    user: UserResponse
+
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
@@ -38,7 +41,6 @@ class ProfileUpdate(BaseModel):
 
 # LLM Provider Schemas
 class LLMProviderConfig(BaseModel):
-    provider: str
     api_key: Optional[str] = None
     base_url: Optional[str] = None
 
@@ -83,6 +85,7 @@ class DialogCreate(BaseModel):
 
 class DialogUpdate(BaseModel):
     title: Optional[str] = None
+    is_pinned: Optional[int] = None
     llm_model: Optional[str] = None
     freedom: Optional[float] = None
     temperature: Optional[float] = None
@@ -94,6 +97,7 @@ class DialogUpdate(BaseModel):
 class DialogResponse(BaseModel):
     id: int
     title: str
+    is_pinned: Optional[int] = 0
     llm_model: str
     freedom: Decimal
     temperature: Decimal
@@ -128,6 +132,10 @@ class ModelCard(BaseModel):
     id: str
     name: str
     description: str
+    max_tokens: Optional[int] = None
+    tags: Optional[str] = None
+    model_type: Optional[str] = None
+    is_tools: Optional[bool] = None
 
 class ModelCardsResponse(BaseModel):
     openai: List[ModelCard]

@@ -1,0 +1,298 @@
+{
+  "openai": [
+    {
+      "id": "gpt-5",
+      "name": "gpt-5",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 400000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-5-mini",
+      "name": "gpt-5-mini",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 400000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-5-nano",
+      "name": "gpt-5-nano",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 400000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-5-chat-latest",
+      "name": "gpt-5-chat-latest",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 400000,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "gpt-4.1",
+      "name": "gpt-4.1",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1047576,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4.1-mini",
+      "name": "gpt-4.1-mini",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1047576,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4.1-nano",
+      "name": "gpt-4.1-nano",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1047576,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4.5-preview",
+      "name": "gpt-4.5-preview",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 128000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "o3",
+      "name": "o3",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 200000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "o4-mini",
+      "name": "o4-mini",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 200000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "o4-mini-high",
+      "name": "o4-mini-high",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 200000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "gpt-4o-mini",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 128000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4o",
+      "name": "gpt-4o",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 128000,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "name": "gpt-3.5-turbo",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "gpt-3.5-turbo-16k-0613",
+      "name": "gpt-3.5-turbo-16k-0613",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 16385,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "gpt-4",
+      "name": "gpt-4",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8191,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "gpt-4-turbo",
+      "name": "gpt-4-turbo",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8191,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gpt-4-32k",
+      "name": "gpt-4-32k",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 32768,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "tts-1",
+      "name": "tts-1",
+      "description": "TTS",
+      "tags": "TTS",
+      "max_tokens": 2048,
+      "model_type": "tts",
+      "is_tools": false
+    }
+  ],
+  "gemini": [
+    {
+      "id": "gemini-2.5-pro",
+      "name": "gemini-2.5-pro",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1048576,
+      "model_type": "chat,image2text",
+      "is_tools": false
+    },
+    {
+      "id": "gemini-2.5-pro-preview-05-06",
+      "name": "gemini-2.5-pro-preview-05-06",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1048576,
+      "model_type": "chat,image2text",
+      "is_tools": false
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "name": "gemini-2.5-flash",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1048576,
+      "model_type": "chat,image2text",
+      "is_tools": false
+    },
+    {
+      "id": "gemini-2.5-flash-preview-05-20",
+      "name": "gemini-2.5-flash-preview-05-20",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1048576,
+      "model_type": "chat,image2text",
+      "is_tools": true
+    },
+    {
+      "id": "gemini-2.5-flash-lite-preview-06-17",
+      "name": "gemini-2.5-flash-lite-preview-06-17",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 1048576,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gemini-2.0-flash-preview-image-generation",
+      "name": "gemini-2.0-flash-preview-image-generation",
+      "description": "LLM,CHAT,IMAGE2TEXT",
+      "tags": "LLM,CHAT,IMAGE2TEXT",
+      "max_tokens": 1048576,
+      "model_type": "chat,image2text",
+      "is_tools": true
+    },
+    {
+      "id": "gemini-2.0-flash-001",
+      "name": "gemini-2.0-flash-001",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 1048576,
+      "model_type": "chat",
+      "is_tools": true
+    },
+    {
+      "id": "gemini-2.0-flash-thinking-exp-01-21",
+      "name": "gemini-2.0-flash-thinking-exp-01-21",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 1048576,
+      "model_type": "chat",
+      "is_tools": true
+    }
+  ],
+  "ollama": [
+    {
+      "id": "llama3",
+      "name": "llama3",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "llama2",
+      "name": "llama2",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "mistral",
+      "name": "mistral",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "codellama",
+      "name": "codellama",
+      "description": "LLM,CHAT,CODE",
+      "tags": "LLM,CHAT,CODE",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "phi",
+      "name": "phi",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    }
+  ]
+}
+
+

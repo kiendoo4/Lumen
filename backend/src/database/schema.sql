@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS dialogs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   conversation_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
+  is_pinned INT NOT NULL DEFAULT 0,
   llm_model VARCHAR(100) DEFAULT 'gpt-4',
   freedom DECIMAL(3,2) DEFAULT 0.50,
   temperature DECIMAL(3,2) DEFAULT 0.70,
@@ -47,7 +48,8 @@ CREATE TABLE IF NOT EXISTS dialogs (
   max_tokens INT DEFAULT 2000,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+  INDEX idx_dialogs_is_pinned (is_pinned)
 );
 
 -- Messages

@@ -654,6 +654,141 @@
   font-size: 0.9rem;
 }
 
+/* Custom model select (for settings modal) */
+.model-select {
+  position: relative;
+}
+
+.model-select-trigger {
+  width: 100%;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  background: var(--input-bg);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.model-select-trigger:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+.model-select-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.model-select-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.model-select-trigger-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: contain;
+  background: var(--bg-secondary);
+  padding: 4px;
+}
+
+.model-select-trigger-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.model-select-trigger-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.model-select-trigger-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.model-select-trigger svg {
+  transition: transform 0.2s ease;
+}
+
+.model-select-trigger svg.expanded {
+  transform: rotate(180deg);
+}
+
+.model-select-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.4rem;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.model-select-option {
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.model-select-option:hover {
+  background: var(--conversation-hover);
+}
+
+.model-select-option.selected {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.model-select-option-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.model-select-option-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  object-fit: contain;
+  background: var(--bg-secondary);
+  padding: 3px;
+}
+
+.model-select-option-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-select-option-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.model-select-option-provider {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.model-select-option-description {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .create-conversation-modal-overlay {

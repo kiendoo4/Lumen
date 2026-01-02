@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Message, Dialog, Conversation
+from app.models import Message, Dialog, Conversation, RoleEnum
 from app.middleware.auth import get_current_user
 from app.schemas import MessageResponse
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 router = APIRouter()
 
@@ -41,9 +41,9 @@ async def get_messages(
 class MessageCreate(BaseModel):
     role: str
     content: Optional[str] = None
-    reasoning: Optional[Dict[str, Any]] = None
+    reasoning: Optional[Union[Dict[str, Any], List[Any]]] = None
     confidence: Optional[str] = None
-    sources: Optional[Dict[str, Any]] = None
+    sources: Optional[Union[Dict[str, Any], List[Any]]] = None
 
 @router.post("/dialog/{dialog_id}", response_model=MessageResponse)
 async def create_message(
@@ -61,13 +61,35 @@ async def create_message(
     if not dialog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dialog not found")
     
+    # Convert role string to RoleEnum
+    try:
+        role_enum = RoleEnum(message_data.role)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role: {message_data.role}. Must be 'user' or 'agent'"
+        )
+    
+    # Convert reasoning and sources from list to dict if needed
+    # Backend stores as JSON, so we can store either format
+    reasoning = message_data.reasoning
+    sources = message_data.sources
+    
+    # If reasoning is a list, convert to dict with 'steps' key
+    if isinstance(reasoning, list):
+        reasoning = {"steps": reasoning} if reasoning else None
+    
+    # If sources is a list, convert to dict with 'items' key
+    if isinstance(sources, list):
+        sources = {"items": sources} if sources else None
+    
     new_message = Message(
         dialog_id=dialog_id,
-        role=message_data.role,
+        role=role_enum,
         content=message_data.content,
-        reasoning=message_data.reasoning,
+        reasoning=reasoning,
         confidence=message_data.confidence,
-        sources=message_data.sources
+        sources=sources
     )
     db.add(new_message)
     db.commit()
@@ -82,4 +104,31 @@ async def create_message(
         sources=new_message.sources,
         created_at=new_message.created_at
     )
+
+@router.delete("/{message_id}")
+async def delete_message(
+    message_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify ownership through dialog -> conversation
+    message = db.query(Message).join(Dialog).join(Conversation).filter(
+        Message.id == message_id,
+        Conversation.user_id == current_user["userId"]
+    ).first()
+    
+    if not message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    
+    # Only allow deleting user messages (not agent messages)
+    if message.role.value != "user":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Only user messages can be deleted"
+        )
+    
+    db.delete(message)
+    db.commit()
+    
+    return {"message": "Message deleted successfully"}
 

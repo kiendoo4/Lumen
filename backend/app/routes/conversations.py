@@ -39,13 +39,13 @@ async def get_conversations(
             dialogs=[DialogResponse(
                 id=d.id,
                 title=d.title,
-                llm_model=d.llm_model,
-                freedom=d.freedom,
-                temperature=d.temperature,
-                top_p=d.top_p,
-                presence_penalty=d.presence_penalty,
-                frequency_penalty=d.frequency_penalty,
-                max_tokens=d.max_tokens,
+                llm_model=conv.llm_model,  # Get from conversation
+                freedom=conv.freedom,
+                temperature=conv.temperature,
+                top_p=conv.top_p,
+                presence_penalty=conv.presence_penalty,
+                frequency_penalty=conv.frequency_penalty,
+                max_tokens=conv.max_tokens,
                 created_at=d.created_at,
                 updated_at=d.updated_at,
                 message_count=0,
@@ -59,6 +59,13 @@ async def get_conversations(
 async def create_conversation(
     title: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
+    llm_model: Optional[str] = Form(None),
+    freedom: Optional[float] = Form(None),
+    temperature: Optional[float] = Form(None),
+    top_p: Optional[float] = Form(None),
+    presence_penalty: Optional[float] = Form(None),
+    frequency_penalty: Optional[float] = Form(None),
+    max_tokens: Optional[int] = Form(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -70,23 +77,58 @@ async def create_conversation(
         upload_file(file_data, file_path, avatar.content_type or "image/jpeg")
         avatar_url = f"/api/files/{file_path}"
     
+    conversation_title = title or "New Conversation"
+    # Config is stored in conversation, not in individual dialogs
     new_conv = Conversation(
         user_id=current_user["userId"],
-        title=title or "New Conversation",
-        avatar_url=avatar_url
+        title=conversation_title,
+        avatar_url=avatar_url,
+        llm_model=llm_model or "gpt-4",
+        freedom=freedom if freedom is not None else 0.5,
+        temperature=temperature if temperature is not None else 0.7,
+        top_p=top_p if top_p is not None else 0.9,
+        presence_penalty=presence_penalty if presence_penalty is not None else 0.0,
+        frequency_penalty=frequency_penalty if frequency_penalty is not None else 0.0,
+        max_tokens=max_tokens if max_tokens is not None else 2000
     )
     db.add(new_conv)
     db.commit()
     db.refresh(new_conv)
     
+    # Automatically create the first dialog for this conversation
+    # Dialog inherits config from conversation (no config fields needed)
+    from app.models import Dialog
+    new_dialog = Dialog(
+        conversation_id=new_conv.id,
+        title="New Dialog"
+    )
+    db.add(new_dialog)
+    db.commit()
+    db.refresh(new_dialog)
+    
+    from app.schemas import DialogResponse
     return ConversationResponse(
         id=new_conv.id,
         title=new_conv.title,
         avatar_url=new_conv.avatar_url,
         created_at=new_conv.created_at,
         updated_at=new_conv.updated_at,
-        dialog_count=0,
-        dialogs=[]
+        dialog_count=1,
+        dialogs=[DialogResponse(
+            id=new_dialog.id,
+            title=new_dialog.title,
+            llm_model=new_conv.llm_model,  # Get from conversation
+            freedom=new_conv.freedom,
+            temperature=new_conv.temperature,
+            top_p=new_conv.top_p,
+            presence_penalty=new_conv.presence_penalty,
+            frequency_penalty=new_conv.frequency_penalty,
+            max_tokens=new_conv.max_tokens,
+            created_at=new_dialog.created_at,
+            updated_at=new_dialog.updated_at,
+            message_count=0,
+            sources=[]
+        )]
     )
 
 @router.put("/{conversation_id}", response_model=ConversationResponse)
@@ -94,6 +136,13 @@ async def update_conversation(
     conversation_id: int,
     title: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
+    llm_model: Optional[str] = Form(None),
+    freedom: Optional[float] = Form(None),
+    temperature: Optional[float] = Form(None),
+    top_p: Optional[float] = Form(None),
+    presence_penalty: Optional[float] = Form(None),
+    frequency_penalty: Optional[float] = Form(None),
+    max_tokens: Optional[int] = Form(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -113,6 +162,22 @@ async def update_conversation(
         file_data = await avatar.read()
         upload_file(file_data, file_path, avatar.content_type or "image/jpeg")
         conv.avatar_url = f"/api/files/{file_path}"
+    
+    # Update config (config belongs to conversation)
+    if llm_model:
+        conv.llm_model = llm_model
+    if freedom is not None:
+        conv.freedom = freedom
+    if temperature is not None:
+        conv.temperature = temperature
+    if top_p is not None:
+        conv.top_p = top_p
+    if presence_penalty is not None:
+        conv.presence_penalty = presence_penalty
+    if frequency_penalty is not None:
+        conv.frequency_penalty = frequency_penalty
+    if max_tokens is not None:
+        conv.max_tokens = max_tokens
     
     db.commit()
     db.refresh(conv)

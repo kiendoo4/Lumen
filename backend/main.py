@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 import uvicorn
 
-from app.routes import auth, llm_providers, conversations, dialogs, models, files, messages
+from app.routes import auth, llm_providers, conversations, dialogs, models, files, messages, chat
 from app.database import init_db
 
 @asynccontextmanager
@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     pass
 
-app = FastAPI(title="Research Agent API", lifespan=lifespan)
+app = FastAPI(title="Lumen API", lifespan=lifespan)
 
 # CORS
 app.add_middleware(
@@ -35,6 +35,7 @@ app.include_router(dialogs.router, prefix="/api/dialogs", tags=["dialogs"])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(files.router, prefix="/api/files", tags=["files"])
+app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 
 @app.get("/health")
 async def health():

@@ -805,7 +805,8 @@
 /* Responsive */
 @media (max-width: 968px) {
   .profile-main-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 2rem;
   }
 
@@ -814,14 +815,11 @@
   }
 
   .profile-tabs {
-    flex-direction: row;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    flex-direction: column;
   }
 
   .profile-tab {
-    white-space: nowrap;
-    min-width: fit-content;
+    white-space: normal;
   }
 }
 

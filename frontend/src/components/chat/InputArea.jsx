@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
-import Tooltip from './Tooltip';
+import { useLanguage } from '../../contexts/LanguageContext';
+import Tooltip from '../common/Tooltip';
 import './InputArea.css';
 
 function InputArea({ onSendMessage, onFileUpload, disabled, isModalOpen }) {

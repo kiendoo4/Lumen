@@ -3,13 +3,13 @@ import MessageList from './MessageList';
 import InputArea from './InputArea';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import DialogSettingsModal from './DialogSettingsModal';
-import CreateConversationModal from './CreateConversationModal';
-import ConversationSettingsModal from './ConversationSettingsModal';
-import DeleteConfirmationModal from './DeleteConfirmationModal';
-import DialogSearchModal from './DialogSearchModal';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
+import DialogSettingsModal from '../modals/DialogSettingsModal';
+import CreateConversationModal from '../modals/CreateConversationModal';
+import ConversationSettingsModal from '../modals/ConversationSettingsModal';
+import DeleteConfirmationModal from '../modals/DeleteConfirmationModal';
+import DialogSearchModal from '../modals/DialogSearchModal';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import './ChatInterface.css';
 
@@ -251,6 +251,7 @@ function ChatInterface({ onProfileClick }) {
       return;
     }
 
+    // Add user message to UI immediately (not saved to DB yet)
     const userMessage = {
       id: Date.now(),
       role: 'user',
@@ -269,6 +270,7 @@ function ChatInterface({ onProfileClick }) {
     try {
       const formData = new FormData();
       formData.append('message', text);
+      formData.append('dialog_id', selectedDialogId);
       formData.append('context', JSON.stringify(context));
       files.forEach((file) => {
         formData.append('files', file);
@@ -280,6 +282,7 @@ function ChatInterface({ onProfileClick }) {
 
       const data = response.data;
 
+      // Only add agent message if we got a successful response
       const agentMessage = {
         id: Date.now() + 1,
         role: 'agent',
@@ -292,24 +295,91 @@ function ChatInterface({ onProfileClick }) {
 
       setMessages(prev => [...prev, agentMessage]);
       
-      // Save messages to backend
+      // Set loading to false BEFORE saving messages to prevent "thinking" indicator after response
+      setIsLoading(false);
+      
+      // Only save messages to database AFTER successful response
       try {
-        await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
+        // Save user message first
+        const userMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
           role: 'user',
           content: text
         });
-        await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
+        
+        // Save agent message
+        const agentMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
           role: 'agent',
-          content: data.message,
-          reasoning: data.reasoning,
-          confidence: data.confidence,
-          sources: data.sources
+          content: data.message || '',
+          reasoning: data.reasoning || null,
+          confidence: data.confidence || null,
+          sources: data.sources || null
         });
+        
+        // Update messages with real IDs from database
+        setMessages(prev => {
+          const updated = [...prev];
+          // Update user message (second to last)
+          if (updated.length >= 2) {
+            updated[updated.length - 2] = {
+              ...updated[updated.length - 2],
+              id: userMessageResponse.data.id,
+              timestamp: new Date(userMessageResponse.data.created_at)
+            };
+          }
+          // Update agent message (last)
+          if (updated.length >= 1) {
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              id: agentMessageResponse.data.id,
+              timestamp: new Date(agentMessageResponse.data.created_at)
+            };
+          }
+          return updated;
+        });
+        
+        // Auto-name dialog after first message exchange (exactly 2 messages: user + agent)
+        // Check if this was the first exchange by checking message count before we added these 2 messages
+        const messageCountBeforeSave = messages.length;
+        if (messageCountBeforeSave === 0) {
+          // This is the first exchange, auto-name the dialog (async, don't wait)
+          axios.post(`/api/dialogs/${selectedDialogId}/auto-name`)
+            .then(autoNameResponse => {
+              // Update dialog in conversations list
+              setConversations(prev => prev.map(conv => {
+                if (conv.id === selectedConversationId) {
+                  return {
+                    ...conv,
+                    dialogs: conv.dialogs.map(d => 
+                      d.id === selectedDialogId 
+                        ? { ...d, title: autoNameResponse.data.title }
+                        : d
+                    )
+                  };
+                }
+                return conv;
+              }));
+              // Update selected dialog
+              if (selectedDialog) {
+                setSelectedDialog(prev => ({ ...prev, title: autoNameResponse.data.title }));
+              }
+            })
+            .catch(error => {
+              console.error('Error auto-naming dialog:', error);
+              // Don't fail the whole operation if auto-naming fails
+            });
+        }
       } catch (error) {
         console.error('Error saving messages:', error);
+        console.error('Error details:', error.response?.data);
+        // Don't remove messages from UI even if save fails
+        // They will be lost on reload but at least user can see them now
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setIsLoading(false);
+      // Remove user message from UI if request failed (since it wasn't saved)
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      
       const errorMessage = {
         id: Date.now() + 1,
         role: 'agent',
@@ -318,8 +388,6 @@ function ChatInterface({ onProfileClick }) {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -393,10 +461,86 @@ function ChatInterface({ onProfileClick }) {
     }
   };
 
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await axios.delete(`/api/messages/${messageId}`);
+      // Remove message and all subsequent messages (agent response)
+      setMessages(prev => {
+        const index = prev.findIndex(m => m.id === messageId);
+        if (index !== -1) {
+          // Remove the user message and all messages after it (including agent response)
+          return prev.slice(0, index);
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
+  const handleRedoMessage = async (messageId) => {
+    // Find the message to redo
+    const messageToRedo = messages.find(m => m.id === messageId);
+    if (!messageToRedo || messageToRedo.role !== 'user') return;
+
+    // Delete the message and its response
+    await handleDeleteMessage(messageId);
+    
+    // Resend the message
+    setTimeout(() => {
+      handleSendMessage(messageToRedo.content, messageToRedo.files || []);
+    }, 100);
+  };
+
+
+  const handlePinDialog = async () => {
+    if (!selectedDialogId) return;
+    
+    try {
+      const newPinnedState = !selectedDialog?.is_pinned;
+      await axios.put(`/api/dialogs/${selectedDialogId}`, {
+        is_pinned: newPinnedState ? 1 : 0
+      });
+      await loadConversations();
+      await loadDialogData();
+    } catch (error) {
+      console.error('Error pinning dialog:', error);
+    }
+  };
+
+  const handleRenameDialog = async () => {
+    if (!selectedDialogId || !selectedDialog) return;
+    
+    const newTitle = window.prompt(t('settings.renameDialog'), selectedDialog.title);
+    if (newTitle && newTitle.trim() && newTitle !== selectedDialog.title) {
+      try {
+        await axios.put(`/api/dialogs/${selectedDialogId}`, {
+          title: newTitle.trim()
+        });
+        await loadConversations();
+        await loadDialogData();
+      } catch (error) {
+        console.error('Error renaming dialog:', error);
+        alert(t('settings.renameError'));
+      }
+    }
+  };
+
+  const handleDeleteDialogFromHeader = () => {
+    if (!selectedDialogId || !selectedConversationId || !selectedDialog) return;
+    handleDeleteDialog(selectedConversationId, selectedDialogId);
+  };
 
   return (
     <div className="chat-interface">
-      <Header onProfileClick={onProfileClick} />
+      <Header 
+        onProfileClick={onProfileClick} 
+        dialogTitle={selectedDialog?.title}
+        onPinDialog={handlePinDialog}
+        isDialogPinned={selectedDialog?.is_pinned === 1}
+        onRenameDialog={handleRenameDialog}
+        onDeleteDialog={handleDeleteDialogFromHeader}
+      />
       <div className="chat-container">
         <Sidebar
           conversations={conversations}
@@ -416,6 +560,8 @@ function ChatInterface({ onProfileClick }) {
             messages={messages} 
             isLoading={isLoading}
             messagesEndRef={messagesEndRef}
+            onDeleteMessage={handleDeleteMessage}
+            onRedoMessage={handleRedoMessage}
           />
           {selectedDialogId && (
             <InputArea 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import './ContextPanel.css';
 
 function ContextPanel({ context, onAddContext }) {

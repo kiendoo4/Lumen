@@ -249,15 +249,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: font-weight 0.2s ease;
-}
-
-.sidebar-dialog-item:hover .sidebar-dialog-title {
-  font-weight: 600;
 }
 
 .sidebar-dialog-item.active .sidebar-dialog-title {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .sidebar-dialog-delete {
@@ -289,5 +284,49 @@
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-style: italic;
+}
+
+.sidebar-pinned-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-pinned-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-pinned-title {
+  color: var(--text-secondary);
+}
+
+.sidebar-pinned-dialogs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0 0.5rem;
+}
+
+.sidebar-dialog-item.pinned {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.sidebar-dialog-item.pinned:hover {
+  background: var(--dialog-hover);
+}
+
+.sidebar-dialog-item.pinned.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
 }
 

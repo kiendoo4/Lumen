@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import './DialogSearchModal.css';
 
 function DialogSearchModal({ isOpen, onClose, conversations, onSelectDialog }) {

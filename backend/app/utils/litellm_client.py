@@ -3,35 +3,24 @@ from app.models import LLMProvider, ProviderEnum
 from app.database import SessionLocal
 from app.config import settings
 import litellm
+import json
+import os
+from pathlib import Path
 
-MODEL_CARDS = {
-    "openai": [
-        {"id": "gpt-4", "name": "GPT-4", "description": "Most capable model, best for complex tasks"},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "description": "Faster and cheaper than GPT-4"},
-        {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast and cost-effective"},
-        {"id": "gpt-4o", "name": "GPT-4o", "description": "Optimized GPT-4 variant"}
-    ],
-    "gemini": [
-        {"id": "gemini-pro", "name": "Gemini Pro", "description": "Google's advanced model"},
-        {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "description": "Multimodal with vision"},
-        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "description": "Latest Gemini model"},
-        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "description": "Faster Gemini variant"}
-    ],
-    "ollama": [
-        {"id": "llama2", "name": "Llama 2", "description": "Meta's open-source model"},
-        {"id": "llama3", "name": "Llama 3", "description": "Latest Llama model"},
-        {"id": "mistral", "name": "Mistral", "description": "High-performance open model"},
-        {"id": "codellama", "name": "Code Llama", "description": "Specialized for code"},
-        {"id": "phi", "name": "Phi", "description": "Microsoft's efficient model"}
-    ]
-}
+
+# Load model cards from external JSON file for easier maintenance
+_BASE_DIR = Path(__file__).resolve().parent.parent  # app/
+_MODEL_CARDS_PATH = _BASE_DIR / "config" / "model_cards.json"
+
+with _MODEL_CARDS_PATH.open("r", encoding="utf-8") as f:
+    MODEL_CARDS: Dict[str, List[Dict]] = json.load(f)
 
 async def get_llm_config(user_id: int, provider: str) -> Optional[Dict]:
     db = SessionLocal()
     try:
         provider_obj = db.query(LLMProvider).filter(
             LLMProvider.user_id == user_id,
-            LLMProvider.provider == provider
+            LLMProvider.provider == ProviderEnum(provider)
         ).first()
         
         if provider_obj:
@@ -52,47 +41,68 @@ async def call_llm(
     try:
         # Determine provider from model
         provider = "openai"
-        api_key = settings.get("openai_api_key")
+        api_key = None
         base_url = None
         
-        if model.startswith("gemini") or model.startswith("google"):
+        # Check if model name contains "gemini" (case-insensitive)
+        model_lower = model.lower()
+        if "gemini" in model_lower or model.startswith("google"):
             provider = "gemini"
             config = await get_llm_config(user_id, "gemini")
-            if config:
+            if config and config.get("api_key"):
                 api_key = config["api_key"]
             else:
                 api_key = settings.get("gemini_api_key")
+            # Add prefix "gemini/" to model name to use Gemini API (not Vertex AI)
+            if not model.startswith("gemini/"):
+                model = f"gemini/{model}"
         elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
             provider = "ollama"
             config = await get_llm_config(user_id, "ollama")
-            if config:
+            if config and config.get("base_url"):
                 base_url = config["base_url"]
             else:
                 base_url = settings.get("ollama_base_url", "http://localhost:11434")
         else:
             # OpenAI or other
             config = await get_llm_config(user_id, "openai")
-            if config:
+            if config and config.get("api_key"):
                 api_key = config["api_key"]
             else:
                 api_key = settings.get("openai_api_key")
         
-        # Configure litellm
-        if api_key:
-            import os
-            os.environ["OPENAI_API_KEY"] = api_key
-        if base_url:
-            os.environ["OPENAI_API_BASE"] = base_url
+        # Build completion parameters
+        completion_params = {
+            "model": model,
+            "messages": messages,
+            "temperature": settings.get("temperature", 0.7),
+            "top_p": settings.get("top_p", 0.9),
+            "max_tokens": settings.get("max_tokens", 2000)
+        }
         
-        response = litellm.completion(
-            model=model,
-            messages=messages,
-            temperature=settings.get("temperature", 0.7),
-            top_p=settings.get("top_p", 0.9),
-            presence_penalty=settings.get("presence_penalty", 0.0),
-            frequency_penalty=settings.get("frequency_penalty", 0.0),
-            max_tokens=settings.get("max_tokens", 2000)
-        )
+        # Pass api_key directly to completion call (no need to set env)
+        if provider == "gemini":
+            if not api_key:
+                raise ValueError(f"Gemini API key not found for user {user_id}. Please configure Gemini provider in settings.")
+            completion_params["api_key"] = api_key
+        elif provider == "openai":
+            if not api_key:
+                raise ValueError(f"OpenAI API key not found for user {user_id}. Please configure OpenAI provider in settings.")
+            completion_params["api_key"] = api_key
+            if base_url:
+                completion_params["base_url"] = base_url
+        elif provider == "ollama":
+            if not base_url:
+                raise ValueError(f"Ollama base_url not found for user {user_id}. Please configure Ollama provider in settings.")
+            completion_params["base_url"] = base_url
+        
+        # Gemini API doesn't support presence_penalty and frequency_penalty
+        # Only add these parameters for non-Gemini models
+        if provider != "gemini":
+            completion_params["presence_penalty"] = settings.get("presence_penalty", 0.0)
+            completion_params["frequency_penalty"] = settings.get("frequency_penalty", 0.0)
+        
+        response = litellm.completion(**completion_params)
         
         return response
     except Exception as e:

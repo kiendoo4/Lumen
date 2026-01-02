@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import Settings from '../common/Settings';
 import axios from 'axios';
 import './ProfilePage.css';
 
@@ -202,6 +203,16 @@ function LLMProvidersTab() {
   const addedProviders = Object.keys(providers).filter(p => providers[p].api_key || (p === 'ollama' && providers[p].base_url));
   const availableProviders = ['openai', 'gemini', 'ollama'].filter(p => !addedProviders.includes(p));
 
+  const getProviderCapabilityTags = (provider) => {
+    const models = availableModels[provider] || [];
+    const tagsSet = new Set();
+    models.forEach(m => {
+      const desc = typeof m === 'object' ? (m.description || '') : '';
+      desc.split(',').map(s => s.trim()).filter(Boolean).forEach(tag => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet);
+  };
+
   return (
     <div className="llm-providers-container">
       {error && <div className="profile-error-message">{error}</div>}
@@ -368,7 +379,7 @@ function LLMProvidersTab() {
                     <h4>{PROVIDER_NAMES[provider] || provider}</h4>
                   </div>
                   <div className="llm-provider-capabilities">
-                    {PROVIDER_CAPABILITIES[provider]?.map(cap => (
+                    {getProviderCapabilityTags(provider).map(cap => (
                       <span key={cap} className="llm-capability-badge">{cap}</span>
                     ))}
                   </div>
@@ -540,6 +551,16 @@ function ProfilePage({ onBack }) {
                   <line x1="12" y1="17" x2="12" y2="21"></line>
                 </svg>
                 <span>{t('profile.llmProviders')}</span>
+              </button>
+              <button
+                className={`profile-tab ${activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => setActiveTab('settings')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                </svg>
+                <span>{t('sidebar.settings') || 'Settings'}</span>
               </button>
             </div>
           </div>
@@ -724,6 +745,12 @@ function ProfilePage({ onBack }) {
               )}
 
               {activeTab === 'llm' && <LLMProvidersTab />}
+              
+              {activeTab === 'settings' && (
+                <div className="profile-settings-tab">
+                  <Settings />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,10 +1,10 @@
 import React from 'react';
 import Message from './Message';
-import LoadingIndicator from './LoadingIndicator';
-import { useLanguage } from '../contexts/LanguageContext';
+import LoadingIndicator from '../common/LoadingIndicator';
+import { useLanguage } from '../../contexts/LanguageContext';
 import './MessageList.css';
 
-function MessageList({ messages, isLoading, messagesEndRef }) {
+function MessageList({ messages, isLoading, messagesEndRef, onDeleteMessage, onRedoMessage }) {
   const { t } = useLanguage();
 
   return (
@@ -25,7 +25,12 @@ function MessageList({ messages, isLoading, messagesEndRef }) {
           </div>
         )}
         {messages.map(message => (
-          <Message key={message.id} message={message} />
+          <Message 
+            key={message.id} 
+            message={message}
+            onDelete={onDeleteMessage}
+            onRedo={onRedoMessage}
+          />
         ))}
         {isLoading && <LoadingIndicator />}
         <div ref={messagesEndRef} />

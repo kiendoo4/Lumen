@@ -18,6 +18,7 @@ axios.defaults.baseURL = API_BASE;
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const [token, setToken] = useState(null);
 
   const logout = () => {
@@ -51,18 +52,25 @@ export const AuthProvider = ({ children }) => {
         // Then fetch user
         try {
           const response = await axios.get('/api/auth/me');
+          // Set user and loading together atomically to prevent race conditions
           setUser(response.data.user);
           setLoading(false);
+          setInitialized(true);
         } catch (error) {
           console.error('Error fetching user on init:', error);
           // Token invalid, clear it
           localStorage.removeItem('token');
           setToken(null);
           delete axios.defaults.headers.common['Authorization'];
+          // Set loading to false AFTER clearing user to prevent race condition
+          setUser(null);
           setLoading(false);
+          setInitialized(true);
         }
       } else {
+        // No token, set loading to false immediately
         setLoading(false);
+        setInitialized(true);
       }
     };
 
@@ -156,6 +164,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user,
       loading,
+      initialized,
       login,
       register,
       logout,
