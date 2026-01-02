@@ -1,4 +1,4 @@
-# Research-Oriented Conversational Agent
+# Lumen
 
 A chat-based research assistant that supports structured reasoning and specialized tools for scientific document interaction.
 

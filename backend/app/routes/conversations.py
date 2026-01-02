@@ -39,6 +39,7 @@ async def get_conversations(
             dialogs=[DialogResponse(
                 id=d.id,
                 title=d.title,
+                is_pinned=d.is_pinned or 0,
                 llm_model=conv.llm_model,  # Get from conversation
                 freedom=conv.freedom,
                 temperature=conv.temperature,

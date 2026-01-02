@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import Tooltip from '../common/Tooltip';
+import Settings from '../common/Settings';
 import './Sidebar.css';
 
 function Sidebar({ 
@@ -80,7 +81,7 @@ function Sidebar({
           conversations.forEach(conv => {
             if (conv.dialogs) {
               conv.dialogs.forEach(dialog => {
-                if (dialog.is_pinned) {
+                if (dialog.is_pinned === 1 || dialog.is_pinned === true) {
                   pinnedDialogs.push({ ...dialog, conversation: conv });
                 }
               });
@@ -241,6 +242,7 @@ function Sidebar({
           </div>
         )}
       </div>
+      <Settings />
     </div>
   );
 }
