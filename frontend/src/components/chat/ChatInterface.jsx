@@ -15,7 +15,7 @@ import './ChatInterface.css';
 
 function ChatInterface({ onProfileClick }) {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedDialogId, setSelectedDialogId] = useState(null);
@@ -268,10 +268,14 @@ function ChatInterface({ onProfileClick }) {
     setIsLoading(true);
 
     try {
+      // Get user's timezone from profile, fallback to browser timezone or Ho Chi Minh City
+      const userTimezone = user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh';
+      
       const formData = new FormData();
       formData.append('message', text);
       formData.append('dialog_id', selectedDialogId);
       formData.append('context', JSON.stringify(context));
+      formData.append('timezone', userTimezone);
       files.forEach((file) => {
         formData.append('files', file);
       });
@@ -282,11 +286,30 @@ function ChatInterface({ onProfileClick }) {
 
       const data = response.data;
 
-      // Only add agent message if we got a successful response
+      // Check if response is valid (has message content)
+      const isValidResponse = data && data.message && data.message.trim().length > 0;
+
+      if (!isValidResponse) {
+        // Invalid response - remove user message from UI and show error
+        setIsLoading(false);
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        
+        const errorMessage = {
+          id: Date.now() + 1,
+          role: 'agent',
+          content: t('chat.error'),
+          isError: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        return; // Don't save anything to database
+      }
+
+      // Only add agent message if we got a valid response
       const agentMessage = {
         id: Date.now() + 1,
         role: 'agent',
-        content: data.message || t('chat.error'),
+        content: data.message,
         reasoning: data.reasoning || [],
         confidence: data.confidence,
         sources: data.sources || [],
@@ -298,7 +321,7 @@ function ChatInterface({ onProfileClick }) {
       // Set loading to false BEFORE saving messages to prevent "thinking" indicator after response
       setIsLoading(false);
       
-      // Only save messages to database AFTER successful response
+      // Only save messages to database AFTER valid response
       try {
         // Save user message first
         const userMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
@@ -309,7 +332,7 @@ function ChatInterface({ onProfileClick }) {
         // Save agent message
         const agentMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
           role: 'agent',
-          content: data.message || '',
+          content: data.message,
           reasoning: data.reasoning || null,
           confidence: data.confidence || null,
           sources: data.sources || null
@@ -371,8 +394,17 @@ function ChatInterface({ onProfileClick }) {
       } catch (error) {
         console.error('Error saving messages:', error);
         console.error('Error details:', error.response?.data);
-        // Don't remove messages from UI even if save fails
-        // They will be lost on reload but at least user can see them now
+        // If save fails, remove both messages from UI since they weren't saved
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== agentMessage.id));
+        
+        const errorMessage = {
+          id: Date.now() + 1,
+          role: 'agent',
+          content: t('chat.error'),
+          isError: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
       }
     } catch (error) {
       console.error('Error sending message:', error);

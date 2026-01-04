@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import './ProfilePage.css';
+import '../modals/CreateConversationModal.css';
 
 // Provider capabilities mapping
 const PROVIDER_CAPABILITIES = {
@@ -413,20 +414,74 @@ function ProfilePage({ onBack }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [username, setUsername] = useState(user?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '/default_avatar.jpeg');
+  const [timezone, setTimezone] = useState(user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isTimezoneDropdownOpen, setIsTimezoneDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const timezoneDropdownRef = useRef(null);
+
+  // Common timezones list (Ho Chi Minh City first as default)
+  const timezones = [
+    { value: 'Asia/Ho_Chi_Minh', label: 'Ho Chi Minh City' },
+    { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+    { value: 'Asia/Bangkok', label: 'Bangkok' },
+    { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
+    { value: 'Asia/Shanghai', label: 'Shanghai' },
+    { value: 'Asia/Tokyo', label: 'Tokyo' },
+    { value: 'Asia/Seoul', label: 'Seoul' },
+    { value: 'Asia/Kolkata', label: 'Mumbai, New Delhi' },
+    { value: 'Asia/Dubai', label: 'Dubai' },
+    { value: 'Asia/Karachi', label: 'Karachi' },
+    { value: 'Asia/Dhaka', label: 'Dhaka' },
+    { value: 'America/New_York', label: 'Eastern Time (US & Canada)' },
+    { value: 'America/Chicago', label: 'Central Time (US & Canada)' },
+    { value: 'America/Denver', label: 'Mountain Time (US & Canada)' },
+    { value: 'America/Los_Angeles', label: 'Pacific Time (US & Canada)' },
+    { value: 'America/Phoenix', label: 'Arizona' },
+    { value: 'America/Anchorage', label: 'Alaska' },
+    { value: 'Pacific/Honolulu', label: 'Hawaii' },
+    { value: 'Europe/London', label: 'London' },
+    { value: 'Europe/Paris', label: 'Paris' },
+    { value: 'Europe/Berlin', label: 'Berlin' },
+    { value: 'Europe/Rome', label: 'Rome' },
+    { value: 'Europe/Madrid', label: 'Madrid' },
+    { value: 'Europe/Amsterdam', label: 'Amsterdam' },
+    { value: 'Europe/Stockholm', label: 'Stockholm' },
+    { value: 'Europe/Moscow', label: 'Moscow' },
+    { value: 'Australia/Sydney', label: 'Sydney' },
+    { value: 'Australia/Melbourne', label: 'Melbourne' },
+    { value: 'Pacific/Auckland', label: 'Auckland' },
+  ];
 
   React.useEffect(() => {
     if (user) {
       setUsername(user.username || '');
       setAvatarUrl(user.avatar_url || '/default_avatar.jpeg');
+      setTimezone(user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh');
     }
   }, [user]);
+
+  // Close timezone dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (timezoneDropdownRef.current && !timezoneDropdownRef.current.contains(event.target)) {
+        setIsTimezoneDropdownOpen(false);
+      }
+    };
+
+    if (isTimezoneDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTimezoneDropdownOpen]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -455,12 +510,30 @@ function ProfilePage({ onBack }) {
     setError('');
     setSuccess('');
 
-    const result = await updateProfile({ username });
-    if (result.success) {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('timezone', timezone);
+
+    try {
+      setLoading(true);
+      const response = await axios.put('/api/auth/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       setSuccess(t('profile.profileUpdated'));
       setTimeout(() => setSuccess(''), 3000);
-    } else {
-      setError(result.error);
+      // Update user context if needed
+      if (response.data) {
+        // Refresh user data from API to get updated timezone
+        const userResponse = await axios.get('/api/auth/me');
+        if (userResponse.data?.user) {
+          // Update local state to reflect changes
+          setTimezone(userResponse.data.user.timezone || timezone);
+        }
+      }
+    } catch (error) {
+      setError(error.response?.data?.detail || t('profile.updateError'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -645,6 +718,67 @@ function ProfilePage({ onBack }) {
                         disabled
                         className="profile-input profile-disabled-input"
                       />
+                    </div>
+                  </div>
+
+                  <div className="profile-form-field">
+                    <label>Timezone</label>
+                    <div ref={timezoneDropdownRef} style={{ position: 'relative' }}>
+                      <div className="model-select">
+                        <button
+                          type="button"
+                          className="model-select-trigger"
+                          onClick={() => setIsTimezoneDropdownOpen(open => !open)}
+                          disabled={loading}
+                        >
+                          <div className="model-select-trigger-content">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.75rem', flexShrink: 0 }}>
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <div className="model-select-trigger-text">
+                              <span className="model-select-trigger-name">
+                                {timezones.find(tz => tz.value === timezone)?.label || timezone}
+                              </span>
+                            </div>
+                          </div>
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className={isTimezoneDropdownOpen ? 'expanded' : ''}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+
+                        {isTimezoneDropdownOpen && (
+                          <div className="model-select-menu">
+                            {timezones.map((tz) => (
+                              <div
+                                key={tz.value}
+                                className={`model-select-option ${
+                                  timezone === tz.value ? 'selected' : ''
+                                }`}
+                                onClick={() => {
+                                  setTimezone(tz.value);
+                                  setIsTimezoneDropdownOpen(false);
+                                }}
+                              >
+                                <div className="model-select-option-header">
+                                  <div className="model-select-option-title">
+                                    <div className="model-select-option-name">{tz.label}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

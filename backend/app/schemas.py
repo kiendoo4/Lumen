@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     avatar_url: Optional[str] = None
+    timezone: Optional[str] = "Asia/Ho_Chi_Minh"
     
     class Config:
         from_attributes = True
@@ -38,6 +39,7 @@ class PasswordChange(BaseModel):
 class ProfileUpdate(BaseModel):
     username: Optional[str] = None
     avatar_url: Optional[str] = None
+    timezone: Optional[str] = None
 
 # LLM Provider Schemas
 class LLMProviderConfig(BaseModel):

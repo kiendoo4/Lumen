@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
@@ -90,13 +90,15 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user), 
             id=user.id,
             username=user.username,
             email=user.email,
-            avatar_url=user.avatar_url
+            avatar_url=user.avatar_url,
+            timezone=user.timezone or "Asia/Ho_Chi_Minh"
         )
     )
 
 @router.put("/profile", response_model=UserResponse)
 async def update_profile(
-    username: Optional[str] = None,
+    username: Optional[str] = Form(None),
+    timezone: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -107,6 +109,9 @@ async def update_profile(
     
     if username:
         user.username = username
+    
+    if timezone:
+        user.timezone = timezone
     
     if avatar:
         file_path = f"avatars/{current_user['userId']}/{avatar.filename}"
@@ -121,7 +126,8 @@ async def update_profile(
         id=user.id,
         username=user.username,
         email=user.email,
-        avatar_url=user.avatar_url
+        avatar_url=user.avatar_url,
+        timezone=user.timezone or "Asia/Ho_Chi_Minh"
     )
 
 @router.put("/password")

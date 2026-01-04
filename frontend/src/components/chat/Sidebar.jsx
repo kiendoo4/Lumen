@@ -20,6 +20,7 @@ function Sidebar({
 }) {
   const { t } = useLanguage();
   const [expandedConversations, setExpandedConversations] = useState(new Set());
+  const [isPinnedExpanded, setIsPinnedExpanded] = useState(true);
 
   // Auto-expand conversation when it's selected and has a selected dialog
   useEffect(() => {
@@ -90,13 +91,28 @@ function Sidebar({
 
           return pinnedDialogs.length > 0 ? (
             <div className="sidebar-pinned-section">
-              <div className="sidebar-pinned-header">
+              <div 
+                className="sidebar-pinned-header"
+                onClick={() => setIsPinnedExpanded(!isPinnedExpanded)}
+              >
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                  className={`sidebar-pinned-chevron ${isPinnedExpanded ? 'expanded' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4.76z"></path>
                 </svg>
                 <span className="sidebar-pinned-title">{t('sidebar.pinnedDialogs') || 'Pinned'}</span>
               </div>
-              <div className="sidebar-pinned-dialogs">
+              {isPinnedExpanded && (
+                <div className="sidebar-pinned-dialogs">
                 {pinnedDialogs.map(({ id, title, conversation }) => (
                   <div
                     key={id}
@@ -123,7 +139,8 @@ function Sidebar({
                     </Tooltip>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           ) : null;
         })()}

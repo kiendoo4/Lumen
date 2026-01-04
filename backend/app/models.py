@@ -27,6 +27,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(500))
+    timezone = Column(String(100), default="Asia/Ho_Chi_Minh")
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     

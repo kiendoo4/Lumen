@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import List, Optional, Dict, Any
 import json
-
 from app.middleware.auth import get_current_user
 from app.database import get_db
-from app.models import LLMProvider, ProviderEnum, Dialog, Conversation, Message, RoleEnum
-from app.utils.litellm_client import call_llm
+from app.models import LLMProvider, ProviderEnum, Dialog, Conversation, Message, RoleEnum, User
+from app.utils.litellm_client import get_llm_config
+from app.agent.call_llm import call_lumen_agent
 from sqlalchemy.orm import Session
+
 
 router = APIRouter()
 
@@ -45,6 +46,7 @@ async def chat(
     message: str = Form(...),
     dialog_id: Optional[int] = Form(None),
     context: Optional[str] = Form(None),
+    timezone: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None),
     current_user: Dict[str, Any] = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -151,22 +153,55 @@ async def chat(
     })
 
     try:
-        response = await call_llm(
-            user_id=user_id,
-            model=model,
-            messages=messages,
-            settings=generation_settings,
-        )
-
-        # LiteLLM completion return format is OpenAI-compatible
-        content = (
-            response.choices[0].message["content"]
-            if hasattr(response, "choices")
-            else response["choices"][0]["message"]["content"]
-        )
-
+        # Get user's timezone from database
+        user = db.query(User).filter(User.id == user_id).first()
+        user_timezone = user.timezone if user and user.timezone else timezone
+        print(f"[CHAT] User timezone from DB: {user.timezone if user else None}, from request: {timezone}, final: {user_timezone}")
+        
+        # Determine provider and get API key
+        model_lower = model.lower()
+        if "gemini" in model_lower or model.startswith("google"):
+            provider = "gemini"
+            llm_factory = "gemini"
+            # Remove "gemini/" prefix if present
+            llm_name = model.replace("gemini/", "") if model.startswith("gemini/") else model
+        elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
+            provider = "ollama"
+            llm_factory = "ollama"
+            llm_name = model
+        else:
+            provider = "openai"
+            llm_factory = "openai"
+            llm_name = model
+        
+        # Get API key from database
+        config = await get_llm_config(user_id, provider)
+        if not config:
+            raise ValueError(f"{provider.capitalize()} API key not found for user {user_id}. Please configure {provider} provider in settings.")
+        
+        api_key = config.get("api_key")
+        if not api_key and provider != "ollama":
+            raise ValueError(f"{provider.capitalize()} API key not found for user {user_id}. Please configure {provider} provider in settings.")
+        
+        # Prepare LLM model config for call_lumen_agent
+        llm_model_config = {
+            "llm_factory": llm_factory,
+            "llm_name": llm_name,
+            "api_key": api_key
+        }
+        
+        # Call lumen agent with tools
+        response, events = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
+        
+        # Check if response is valid
+        if not response or (isinstance(response, str) and not response.strip()):
+            raise HTTPException(
+                status_code=500,
+                detail="Agent did not generate a valid response. Please try again."
+            )
+        
         return {
-            "message": content,
+            "message": response if isinstance(response, str) else str(response),
             "reasoning": None,
             "confidence": None,
             "sources": [],
