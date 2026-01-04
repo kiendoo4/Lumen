@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from decimal import Decimal
 
@@ -149,9 +149,10 @@ class MessageResponse(BaseModel):
     id: int
     role: str
     content: Optional[str] = None
-    reasoning: Optional[Dict[str, Any]] = None
+    reasoning: Optional[Union[Dict[str, Any], List[Any]]] = None
     confidence: Optional[str] = None
-    sources: Optional[Dict[str, Any]] = None
+    sources: Optional[Union[Dict[str, Any], List[Any]]] = None
+    citations: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
     
     class Config:
@@ -161,4 +162,5 @@ class MessageResponse(BaseModel):
 ConversationResponse.model_rebuild()
 DialogResponse.model_rebuild()
 DialogSourceResponse.model_rebuild()
+MessageResponse.model_rebuild()
 

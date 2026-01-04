@@ -191,7 +191,7 @@ async def chat(
         }
         
         # Call lumen agent with tools
-        response, events = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
+        response, reasoning_steps, citations = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
         
         # Check if response is valid
         if not response or (isinstance(response, str) and not response.strip()):
@@ -202,9 +202,10 @@ async def chat(
         
         return {
             "message": response if isinstance(response, str) else str(response),
-            "reasoning": None,
+            "reasoning": reasoning_steps if reasoning_steps else None,
             "confidence": None,
             "sources": [],
+            "citations": citations if citations else [],
         }
     except ValueError as e:
         # API key configuration errors

@@ -65,6 +65,7 @@ export const translations = {
     'message.reasoning': 'Reasoning Steps:',
     'message.confidence': 'Confidence:',
     'message.sources': 'Sources:',
+    'message.references': 'References',
     
     // Theme
     'theme.light': 'Light',
@@ -258,6 +259,7 @@ export const translations = {
     'message.reasoning': 'Các bước Suy luận:',
     'message.confidence': 'Độ tin cậy:',
     'message.sources': 'Nguồn:',
+    'message.references': 'Tài liệu tham khảo',
     
     // Theme
     'theme.light': 'Sáng',

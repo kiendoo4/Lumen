@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import Tooltip from '../common/Tooltip';
 import './Message.css';
 
 function Message({ message, onDelete, onRedo }) {
@@ -10,6 +12,8 @@ function Message({ message, onDelete, onRedo }) {
   const { user } = useAuth();
   const isUser = message.role === 'user';
   const isError = message.isError;
+  const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
+  const [expandedResults, setExpandedResults] = useState({});
 
   return (
     <div className={`message-container ${isUser ? 'message-container-user' : 'message-container-agent'}`}>
@@ -62,10 +66,146 @@ function Message({ message, onDelete, onRedo }) {
       </div>
       <div className={`message-bubble ${isUser ? 'message-bubble-user' : 'message-bubble-agent'} ${isError ? 'message-error' : ''}`}>
         <div className="message-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {message.content}
-          </ReactMarkdown>
+          {(() => {
+            // Parse citations from message content
+            const citations = message.citations || [];
+            let content = message.content || '';
+            
+            // Build citation map for quick lookup
+            const citationMap = {};
+            citations.forEach((citation, idx) => {
+              const citationId = citation.index !== undefined ? citation.index : (idx + 1);
+              citationMap[citationId] = citation;
+            });
+            
+            // Process content: handle both ##i$$ format (legacy) and [1], [2] format
+            // First, replace ##i$$ with [i] format for consistency
+            content = content.replace(/##(\d+)\$\$/g, (match, index) => {
+              return `[${index}]`;
+            });
+            
+            // Replace [1], [2] patterns with HTML cite tags
+            // We need to be careful not to replace markdown links [text](url)
+            let processedContent = content;
+            if (citations.length > 0) {
+              // Replace citation patterns [number] that are not part of markdown links
+              // This regex matches [number] that is not followed by (url)
+              processedContent = processedContent.replace(/\[(\d+)\](?!\()/g, (match, citationId) => {
+                const id = parseInt(citationId);
+                if (citationMap[id]) {
+                  const citation = citationMap[id];
+                  const url = citation.url || `#citation-${id}`;
+                  return `<cite id="cite-${id}" data-citation-id="${id}" data-url="${url || ''}" data-title="${(citation.title || '').replace(/"/g, '&quot;')}">[${id}]</cite>`;
+                }
+                return match; // Keep original if citation not found
+              });
+            }
+            
+            // Custom components for ReactMarkdown to handle cite tags
+            const markdownComponents = {
+              cite: ({ node, children, ...props }) => {
+                // Extract citation ID from data attribute or id attribute
+                const citationId = props['data-citation-id'] || 
+                                  (props.id ? props.id.replace('cite-', '') : null);
+                
+                if (!citationId) {
+                  return <cite {...props}>{children}</cite>;
+                }
+                
+                const id = parseInt(citationId);
+                const citation = citationMap[id];
+                
+                if (!citation) {
+                  return <cite {...props}>{children}</cite>;
+                }
+                
+                const tooltipContent = (
+                  <div className="citation-tooltip-content">
+                    <div className="citation-tooltip-title">{citation.title || 'Untitled'}</div>
+                    {citation.url && (
+                      <div className="citation-tooltip-url">{citation.url}</div>
+                    )}
+                    {citation.snippet && (
+                      <div className="citation-tooltip-snippet">{citation.snippet}</div>
+                    )}
+                  </div>
+                );
+                
+                return (
+                  <Tooltip text={tooltipContent} position="top">
+                    <sup
+                      className="citation-sup"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (citation.url) {
+                          window.open(citation.url, '_blank', 'noopener,noreferrer');
+                        } else {
+                          // Scroll to citation in references list
+                          const citationEl = document.getElementById(`citation-${id}`);
+                          if (citationEl) {
+                            citationEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
+                        }
+                      }}
+                    >
+                      {children}
+                    </sup>
+                  </Tooltip>
+                );
+              },
+            };
+            
+            // Render markdown with custom components
+            return (
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={markdownComponents}
+              >
+                {processedContent}
+              </ReactMarkdown>
+            );
+          })()}
         </div>
+        {/* Citations list at the bottom */}
+        {(() => {
+          const citations = message.citations || [];
+          if (citations.length === 0) return null;
+          
+          return (
+            <div className="citations-list">
+              <div className="citations-header">{t('message.references') || 'References'}</div>
+              <ol className="citations-items">
+                {citations.map((citation, idx) => {
+                  const citationId = citation.index !== undefined ? citation.index : (idx + 1);
+                  return (
+                    <li key={idx} id={`citation-${citationId}`} className="citation-item">
+                      <span className="citation-number">[{citationId}]</span>
+                      <div className="citation-content">
+                        {citation.url ? (
+                          <a 
+                            href={citation.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="citation-link"
+                          >
+                            {citation.title || citation.url}
+                          </a>
+                        ) : (
+                          <span className="citation-title">{citation.title || 'Untitled'}</span>
+                        )}
+                        {citation.snippet && (
+                          <div className="citation-snippet">{citation.snippet}</div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          );
+        })()}
         {message.files && message.files.length > 0 && (
           <div className="message-files">
             {message.files.map((file, idx) => (
@@ -82,14 +222,115 @@ function Message({ message, onDelete, onRedo }) {
             ? message.reasoning 
             : (message.reasoning?.steps || []);
           
-          return reasoningSteps.length > 0 && (
+          if (!reasoningSteps || reasoningSteps.length === 0) return null;
+          
+          // Filter to only show tool calls and responses
+          const toolSteps = reasoningSteps.filter(step => 
+            step && (step.type === 'tool_call' || step.type === 'tool_response')
+          );
+          
+          if (toolSteps.length === 0) return null;
+          
+          // Get tool display names (no emoji)
+          const getToolDisplayName = (toolName) => {
+            if (toolName === 'search_duckduckgo') return 'Search DuckDuckGo';
+            if (toolName === 'search_url') return 'Read URL';
+            return toolName;
+          };
+          
+          return (
             <div className="message-reasoning">
-              <div className="reasoning-header">{t('message.reasoning')}</div>
-              <ul className="reasoning-steps">
-                {reasoningSteps.map((step, idx) => (
-                  <li key={idx}>{step}</li>
-                ))}
-              </ul>
+              <button 
+                className="reasoning-toggle"
+                onClick={() => setIsReasoningExpanded(!isReasoningExpanded)}
+                type="button"
+              >
+                <span className="reasoning-toggle-text">
+                  {t('message.reasoning') || 'Reasoning Process'}
+                </span>
+                <span className="reasoning-toggle-count">({toolSteps.length} steps)</span>
+                <svg 
+                  className={`reasoning-toggle-icon ${isReasoningExpanded ? 'expanded' : ''}`}
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              {isReasoningExpanded && (
+                <div className="reasoning-steps">
+                  {toolSteps.map((step, idx) => {
+                    if (step.type === 'tool_call') {
+                      const toolName = step.tool_name || 'unknown';
+                      const args = step.args || '';
+                      const toolDisplayName = getToolDisplayName(toolName);
+                      
+                      return (
+                        <div key={idx} className="reasoning-step reasoning-step-call">
+                          <div className="reasoning-step-header">
+                            <span className="reasoning-step-icon">→</span>
+                            <span className="reasoning-step-title">{toolDisplayName}</span>
+                          </div>
+                          {args && (
+                            <div className="reasoning-step-content">
+                              <span className="reasoning-step-label">Query:</span> {args}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else if (step.type === 'tool_response') {
+                      const toolName = step.tool_name || 'unknown';
+                      const result = step.result || '';
+                      const toolDisplayName = getToolDisplayName(toolName);
+                      const resultId = `result-${idx}`;
+                      const isResultExpanded = expandedResults[resultId] || false;
+                      const shouldTruncate = result.length > 300;
+                      // Show full result when expanded, truncated when collapsed
+                      const displayResult = shouldTruncate && !isResultExpanded 
+                        ? result.substring(0, 300) 
+                        : result;
+                      
+                      return (
+                        <div key={idx} className="reasoning-step reasoning-step-response">
+                          <div className="reasoning-step-header">
+                            <span className="reasoning-step-icon">✓</span>
+                            <span className="reasoning-step-title">{toolDisplayName} completed</span>
+                          </div>
+                          {result && (
+                            <div className="reasoning-step-content">
+                              <span className="reasoning-step-label">Result:</span> 
+                              <div className="reasoning-step-result">
+                                {displayResult}
+                                {shouldTruncate && !isResultExpanded && <span>...</span>}
+                                {shouldTruncate && (
+                                  <button
+                                    className={`reasoning-result-expand ${isResultExpanded ? 'expanded' : ''}`}
+                                    onClick={() => setExpandedResults(prev => ({
+                                      ...prev,
+                                      [resultId]: !isResultExpanded
+                                    }))}
+                                    type="button"
+                                  >
+                                    <span>{isResultExpanded ? 'Show less' : 'Show more'}</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              )}
             </div>
           );
         })()}

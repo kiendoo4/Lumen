@@ -101,6 +101,7 @@ class Message(Base):
     reasoning = Column(JSON)
     confidence = Column(String(50))
     sources = Column(JSON)
+    citations = Column(JSON)
     created_at = Column(TIMESTAMP, server_default=func.now())
     
     dialog = relationship("Dialog", back_populates="messages")

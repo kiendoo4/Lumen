@@ -8,20 +8,22 @@
 .tooltip {
   visibility: hidden;
   opacity: 0;
-  background-color: rgba(0, 0, 0, 0.9);
-  color: white;
-  text-align: center;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  text-align: left;
   border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
   position: fixed;
   z-index: 99999;
   font-size: 0.75rem;
   font-weight: 500;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 300px;
   pointer-events: none;
   transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
   transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 .tooltip::after {
@@ -35,28 +37,28 @@
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+  border-color: var(--bg-primary) transparent transparent transparent;
 }
 
 .tooltip-bottom::after {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border-color: transparent transparent rgba(0, 0, 0, 0.9) transparent;
+  border-color: transparent transparent var(--bg-primary) transparent;
 }
 
 .tooltip-left::after {
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  border-color: transparent transparent transparent rgba(0, 0, 0, 0.9);
+  border-color: transparent transparent transparent var(--bg-primary);
 }
 
 .tooltip-right::after {
   right: 100%;
   top: 50%;
   transform: translateY(-50%);
-  border-color: transparent rgba(0, 0, 0, 0.9) transparent transparent;
+  border-color: transparent var(--bg-primary) transparent transparent;
 }
 
 .tooltip-wrapper:hover .tooltip {

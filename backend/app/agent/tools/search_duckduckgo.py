@@ -1,4 +1,5 @@
 import httpx
+import json
 from typing import List, Dict
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
@@ -50,9 +51,10 @@ def search_duckduckgo(query: str, max_results: int = 5) -> str:
                 except Exception as e:
                     continue
             
-            # Format results as string for agent
+            # Format results as string for agent with citation metadata
             if results:
                 result_parts = []
+                citation_metadata = []
                 for i, result in enumerate(results, 1):
                     result_str = f"{i}. {result['title']}\n"
                     if result.get('url'):
@@ -60,8 +62,20 @@ def search_duckduckgo(query: str, max_results: int = 5) -> str:
                     if result.get('snippet'):
                         result_str += f"   {result['snippet']}\n"
                     result_parts.append(result_str)
+                    
+                    # Store citation metadata (index starts from 1)
+                    citation_metadata.append({
+                        'index': i,
+                        'title': result.get('title', ''),
+                        'url': result.get('url', ''),
+                        'snippet': result.get('snippet', '')
+                    })
                 
-                return "\n".join(result_parts)
+                # Return formatted string with citation metadata embedded
+                formatted_result = "\n".join(result_parts)
+                # Add citation metadata as JSON at the end (will be parsed by backend)
+                citation_json = f"\n\n[CITATION_METADATA]{json.dumps(citation_metadata)}[/CITATION_METADATA]"
+                return formatted_result + citation_json
             else:
                 return f"Search query '{query}' executed but no results found. Please try rephrasing your query or use the search_url tool to visit specific websites."
             

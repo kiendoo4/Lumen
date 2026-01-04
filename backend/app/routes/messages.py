@@ -35,6 +35,7 @@ async def get_messages(
         reasoning=m.reasoning,
         confidence=m.confidence,
         sources=m.sources,
+        citations=m.citations,
         created_at=m.created_at
     ) for m in messages]
 
@@ -44,6 +45,7 @@ class MessageCreate(BaseModel):
     reasoning: Optional[Union[Dict[str, Any], List[Any]]] = None
     confidence: Optional[str] = None
     sources: Optional[Union[Dict[str, Any], List[Any]]] = None
+    citations: Optional[List[Dict[str, Any]]] = None
 
 @router.post("/dialog/{dialog_id}", response_model=MessageResponse)
 async def create_message(
@@ -89,7 +91,8 @@ async def create_message(
         content=message_data.content,
         reasoning=reasoning,
         confidence=message_data.confidence,
-        sources=sources
+        sources=sources,
+        citations=message_data.citations
     )
     db.add(new_message)
     db.commit()
@@ -102,6 +105,7 @@ async def create_message(
         reasoning=new_message.reasoning,
         confidence=new_message.confidence,
         sources=new_message.sources,
+        citations=new_message.citations,
         created_at=new_message.created_at
     )
 
@@ -127,8 +131,30 @@ async def delete_message(
             detail="Only user messages can be deleted"
         )
     
+    # Delete the user message and ALL subsequent messages (both user and agent)
+    # Get all messages in the same dialog that were created after this message
+    dialog_id = message.dialog_id
+    message_created_at = message.created_at
+    message_id_to_delete = message.id
+    
+    # Find all messages in the same dialog created after this message
+    # Use >= to include messages created at the same time, and also check id to be safe
+    subsequent_messages = db.query(Message).filter(
+        Message.dialog_id == dialog_id,
+        Message.created_at >= message_created_at,
+        Message.id != message_id_to_delete  # Exclude the message itself (we'll delete it separately)
+    ).all()
+    
+    # Delete all subsequent messages first
+    for subsequent_msg in subsequent_messages:
+        db.delete(subsequent_msg)
+    
+    # Delete the user message
     db.delete(message)
+    
+    # Commit the transaction to ensure all deletions are persisted
     db.commit()
     
-    return {"message": "Message deleted successfully"}
+    deleted_count = len(subsequent_messages) + 1
+    return {"message": f"Message and {len(subsequent_messages)} subsequent message(s) deleted successfully", "deleted_count": deleted_count}
 

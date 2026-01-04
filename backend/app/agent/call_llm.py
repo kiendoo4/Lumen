@@ -42,6 +42,8 @@ Guidelines:
 
 - Always provide clear, accurate, and helpful responses
 - Cite your sources when using information from web searches or URLs
+- When citing sources from search results, use the format ##i$$ where i is the index number (1, 2, 3, etc.) to reference the search result. For example, if you mention information from the first search result, use ##1$$, from the second result use ##2$$, and so on.
+- The citation format ##i$$ will be automatically rendered as a clickable citation link in the UI
 - If you cannot find the information requested after searching, be honest about it and suggest alternatives
 - Do NOT say you cannot help without first trying to search for the information using the search_duckduckgo tool
 """
@@ -246,6 +248,8 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
         )
 
         events = []
+        reasoning_steps = []  # Store tool calls for reasoning display
+        citations = []  # Store citation metadata from search results
         response = ""
         async for event in runner.run_async(
             user_id=USER_ID, 
@@ -253,12 +257,78 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
             new_message=new_message_content
         ):
             print("lmeo: ", event.content.parts)
-            if event.is_final_response():
-                events += [event]
-                if event.author == "root_agent":
-                    response = event.content.parts[0].text if event.content.parts and event.content.parts[0].text else ""
+            events += [event]
+            
+            # Extract tool calls and responses for reasoning display
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    # Check if this is a function call
+                    if hasattr(part, 'function_call') and part.function_call:
+                        func_call = part.function_call
+                        tool_name = func_call.name if hasattr(func_call, 'name') else ''
+                        args = func_call.args if hasattr(func_call, 'args') else {}
+                        
+                        # Format args for display
+                        args_str = ""
+                        if isinstance(args, dict):
+                            args_str = ", ".join([f"{k}: {v}" for k, v in args.items()])
+                        else:
+                            args_str = str(args)
+                        
+                        reasoning_steps.append({
+                            'type': 'tool_call',
+                            'tool_name': tool_name,
+                            'args': args_str,
+                            'timestamp': event.timestamp if hasattr(event, 'timestamp') else time.time()
+                        })
+                    # Check if this is a function response
+                    elif hasattr(part, 'function_response') and part.function_response:
+                        func_response = part.function_response
+                        tool_name = func_response.name if hasattr(func_response, 'name') else ''
+                        result = func_response.response if hasattr(func_response, 'response') else {}
+                        
+                        # Format result for display (truncate if too long)
+                        result_str = ""
+                        if isinstance(result, dict):
+                            if 'result' in result:
+                                result_str = str(result['result'])
+                            else:
+                                result_str = str(result)
+                        else:
+                            result_str = str(result)
+                        
+                        # Extract citation metadata from search_duckduckgo results
+                        if tool_name == 'search_duckduckgo' and result_str:
+                            import json
+                            import re
+                            # Look for citation metadata in the result
+                            citation_match = re.search(r'\[CITATION_METADATA\](.*?)\[/CITATION_METADATA\]', result_str, re.DOTALL)
+                            if citation_match:
+                                try:
+                                    citation_data = json.loads(citation_match.group(1))
+                                    citations.extend(citation_data)
+                                    # Remove citation metadata from display result
+                                    result_str = re.sub(r'\[CITATION_METADATA\].*?\[/CITATION_METADATA\]', '', result_str, flags=re.DOTALL).strip()
+                                except:
+                                    pass
+                        
+                        # Store full result (don't truncate, let frontend handle it)
+                        reasoning_steps.append({
+                            'type': 'tool_response',
+                            'tool_name': tool_name,
+                            'result': result_str,  # Full result, no truncation
+                            'timestamp': event.timestamp if hasattr(event, 'timestamp') else time.time()
+                        })
+            
+            # Extract final response text
+            if event.is_final_response() and event.author == "root_agent":
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            response = part.text
+                            break
         
-        return response, events
+        return response, reasoning_steps, citations
         
     finally:
         # Clean up session asynchronously
@@ -288,4 +358,4 @@ async def call_lumen_agent(llm_model_config, messages, timezone=None):
         # Return error message if something goes wrong
         error_msg = f"Error processing request: {str(e)}"
         print(f"[LUMEN_AGENT] Error: {error_msg}")
-        return "", []
+        return "", [], []

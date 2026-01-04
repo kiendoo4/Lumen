@@ -102,6 +102,7 @@ function ChatInterface({ onProfileClick }) {
               reasoning: m.reasoning,
               confidence: m.confidence,
               sources: m.sources,
+              citations: m.citations || [],
               timestamp: new Date(m.created_at)
             })));
           } catch (error) {
@@ -243,7 +244,7 @@ function ChatInterface({ onProfileClick }) {
     setIsDialogSearchOpen(true);
   };
 
-  const handleSendMessage = async (text, files = []) => {
+  const handleSendMessage = async (text, files = [], baseMessages = null) => {
     if ((!text.trim() && files.length === 0) || isLoading) return;
 
     if (!selectedConversationId || !selectedDialogId) {
@@ -264,7 +265,9 @@ function ChatInterface({ onProfileClick }) {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Use baseMessages if provided (for redo), otherwise use current messages state
+    const currentBaseMessages = baseMessages !== null ? baseMessages : messages;
+    setMessages([...currentBaseMessages, userMessage]);
     setIsLoading(true);
 
     try {
@@ -313,6 +316,7 @@ function ChatInterface({ onProfileClick }) {
         reasoning: data.reasoning || [],
         confidence: data.confidence,
         sources: data.sources || [],
+        citations: data.citations || [],
         timestamp: new Date()
       };
 
@@ -335,7 +339,8 @@ function ChatInterface({ onProfileClick }) {
           content: data.message,
           reasoning: data.reasoning || null,
           confidence: data.confidence || null,
-          sources: data.sources || null
+          sources: data.sources || null,
+          citations: data.citations || null
         });
         
         // Update messages with real IDs from database
@@ -494,36 +499,82 @@ function ChatInterface({ onProfileClick }) {
   };
 
   const handleDeleteMessage = async (messageId) => {
+    // Find the index of the message to delete
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) return;
+
+    // Remove the message and all subsequent messages from UI immediately
+    // Backend will delete the user message and all subsequent messages
+    setMessages(prev => {
+      return prev.slice(0, messageIndex);
+    });
+
+    // Delete the message and all subsequent messages from database
+    // Backend will automatically delete ALL subsequent messages (both user and agent)
     try {
       await axios.delete(`/api/messages/${messageId}`);
-      // Remove message and all subsequent messages (agent response)
-      setMessages(prev => {
-        const index = prev.findIndex(m => m.id === messageId);
-        if (index !== -1) {
-          // Remove the user message and all messages after it (including agent response)
-          return prev.slice(0, index);
-        }
-        return prev;
-      });
     } catch (error) {
-      console.error('Error deleting message:', error);
+      // Ignore 404 errors (message might not be saved yet)
+      if (error.response?.status !== 404) {
+        console.error('Error deleting message:', error);
+      }
     }
   };
 
   const handleRedoMessage = async (messageId) => {
-    // Find the message to redo
     const messageToRedo = messages.find(m => m.id === messageId);
     if (!messageToRedo || messageToRedo.role !== 'user') return;
+  
+    const messageContent = messageToRedo.content;
+    const messageFiles = messageToRedo.files || [];
+  
+    // Find the index of the user message
+    const userMessageIndex = messages.findIndex(m => m.id === messageId);
+    if (userMessageIndex === -1) return;
 
-    // Delete the message and its response
-    await handleDeleteMessage(messageId);
-    
-    // Resend the message
-    setTimeout(() => {
-      handleSendMessage(messageToRedo.content, messageToRedo.files || []);
-    }, 100);
+    // Remove all subsequent messages from UI immediately (keep only messages before the one to redo)
+    setMessages(prev => prev.slice(0, userMessageIndex));
+  
+    try {
+      // Delete the user message and all subsequent messages from database
+      await axios.delete(`/api/messages/${messageId}`);
+      
+      // Reload messages from database to get the fresh state
+      if (selectedDialogId) {
+        const messagesResponse = await axios.get(`/api/messages/dialog/${selectedDialogId}`);
+        const freshMessages = messagesResponse.data.map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          reasoning: m.reasoning,
+          confidence: m.confidence,
+          sources: m.sources,
+          citations: m.citations || [],
+          timestamp: new Date(m.created_at)
+        }));
+        
+        // Update UI with fresh messages from database
+        setMessages(freshMessages);
+        
+        // Wait longer to ensure database commit is complete and backend will see the changes
+        // This prevents race condition where backend might still see old messages
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Pass freshMessages to handleSendMessage to ensure it uses the correct base
+        handleSendMessage(messageContent, messageFiles, freshMessages);
+      } else {
+        // If no dialog selected, just send with current state
+        handleSendMessage(messageContent, messageFiles);
+      }
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error('Error deleting message:', error);
+        return;
+      }
+      // If 404, message wasn't saved, just send it
+      handleSendMessage(messageContent, messageFiles);
+    }
   };
-
 
   const handlePinDialog = async () => {
     if (!selectedDialogId) return;
