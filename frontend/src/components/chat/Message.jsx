@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Tooltip from '../common/Tooltip';
@@ -14,6 +17,7 @@ function Message({ message, onDelete, onRedo }) {
   const isError = message.isError;
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
   const [expandedResults, setExpandedResults] = useState({});
+  const [isCitationsExpanded, setIsCitationsExpanded] = useState(false);
 
   return (
     <div className={`message-container ${isUser ? 'message-container-user' : 'message-container-agent'}`}>
@@ -119,13 +123,45 @@ function Message({ message, onDelete, onRedo }) {
                   return <cite {...props}>{children}</cite>;
                 }
                 
+                // Check if this is a Semantic Scholar citation (has authors, year, or venue)
+                const isSemanticScholar = citation.authors || citation.year || citation.venue;
+                
                 const tooltipContent = (
                   <div className="citation-tooltip-content">
                     <div className="citation-tooltip-title">{citation.title || 'Untitled'}</div>
+                    
+                    {/* Semantic Scholar specific fields */}
+                    {isSemanticScholar && citation.authors && citation.authors.length > 0 && (
+                      <div className="citation-tooltip-authors">
+                        <strong>Authors:</strong> {citation.authors.slice(0, 5).join(', ')}
+                        {citation.authors.length > 5 && ` and ${citation.authors.length - 5} more`}
+                      </div>
+                    )}
+                    
+                    {isSemanticScholar && citation.year && (
+                      <div className="citation-tooltip-year">
+                        <strong>Year:</strong> {citation.year}
+                      </div>
+                    )}
+                    
+                    {isSemanticScholar && citation.venue && (
+                      <div className="citation-tooltip-venue">
+                        <strong>Venue:</strong> {citation.venue}
+                      </div>
+                    )}
+                    
                     {citation.url && (
                       <div className="citation-tooltip-url">{citation.url}</div>
                     )}
-                    {citation.snippet && (
+                    
+                    {/* Show abstract for Semantic Scholar, snippet for others */}
+                    {isSemanticScholar && citation.abstract ? (
+                      <div className="citation-tooltip-abstract">
+                        {citation.abstract.length > 200 
+                          ? `${citation.abstract.substring(0, 200)}...` 
+                          : citation.abstract}
+                      </div>
+                    ) : citation.snippet && (
                       <div className="citation-tooltip-snippet">{citation.snippet}</div>
                     )}
                   </div>
@@ -159,8 +195,8 @@ function Message({ message, onDelete, onRedo }) {
             // Render markdown with custom components
             return (
               <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeRaw, rehypeKatex]}
                 components={markdownComponents}
               >
                 {processedContent}
@@ -175,10 +211,33 @@ function Message({ message, onDelete, onRedo }) {
           
           return (
             <div className="citations-list">
-              <div className="citations-header">{t('message.references') || 'References'}</div>
-              <ol className="citations-items">
+              <button 
+                className="citations-toggle"
+                onClick={() => setIsCitationsExpanded(!isCitationsExpanded)}
+                type="button"
+              >
+                <span className="citations-toggle-text">
+                  {t('message.references') || 'References'}
+                </span>
+                <span className="citations-toggle-count">({citations.length})</span>
+                <svg 
+                  className={`citations-toggle-icon ${isCitationsExpanded ? 'expanded' : ''}`}
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              {isCitationsExpanded && (
+                <ol className="citations-items">
                 {citations.map((citation, idx) => {
                   const citationId = citation.index !== undefined ? citation.index : (idx + 1);
+                  const isSemanticScholar = citation.authors || citation.year || citation.venue;
+                  
                   return (
                     <li key={idx} id={`citation-${citationId}`} className="citation-item">
                       <span className="citation-number">[{citationId}]</span>
@@ -195,14 +254,35 @@ function Message({ message, onDelete, onRedo }) {
                         ) : (
                           <span className="citation-title">{citation.title || 'Untitled'}</span>
                         )}
-                        {citation.snippet && (
+                        
+                        {/* Semantic Scholar specific fields */}
+                        {isSemanticScholar && citation.authors && citation.authors.length > 0 && (
+                          <div className="citation-authors">
+                            <strong>Authors:</strong> {citation.authors.slice(0, 5).join(', ')}
+                            {citation.authors.length > 5 && ` and ${citation.authors.length - 5} more`}
+                          </div>
+                        )}
+                        
+                        {isSemanticScholar && (citation.year || citation.venue) && (
+                          <div className="citation-meta">
+                            {citation.year && <span>Year: {citation.year}</span>}
+                            {citation.year && citation.venue && <span> • </span>}
+                            {citation.venue && <span>Venue: {citation.venue}</span>}
+                          </div>
+                        )}
+                        
+                        {/* Show abstract for Semantic Scholar, snippet for others */}
+                        {isSemanticScholar && citation.abstract ? (
+                          <div className="citation-abstract">{citation.abstract}</div>
+                        ) : citation.snippet && (
                           <div className="citation-snippet">{citation.snippet}</div>
                         )}
                       </div>
                     </li>
                   );
                 })}
-              </ol>
+                </ol>
+              )}
             </div>
           );
         })()}

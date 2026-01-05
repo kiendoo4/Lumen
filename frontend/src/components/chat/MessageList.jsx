@@ -4,11 +4,11 @@ import LoadingIndicator from '../common/LoadingIndicator';
 import { useLanguage } from '../../contexts/LanguageContext';
 import './MessageList.css';
 
-function MessageList({ messages, isLoading, messagesEndRef, onDeleteMessage, onRedoMessage }) {
+function MessageList({ messages, isLoading, messagesEndRef, messageListRef, onDeleteMessage, onRedoMessage }) {
   const { t } = useLanguage();
 
   return (
-    <div className="message-list">
+    <div className="message-list" ref={messageListRef}>
       <div className="message-list-content">
         {messages.length === 0 && (
           <div className="empty-state">

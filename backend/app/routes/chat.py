@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 import json
 from app.middleware.auth import get_current_user
 from app.database import get_db
-from app.models import LLMProvider, ProviderEnum, Dialog, Conversation, Message, RoleEnum, User
+from app.models import LLMProvider, ProviderEnum, Dialog, Conversation, Message, RoleEnum, User, DialogSource, SourceTypeEnum
 from app.utils.litellm_client import get_llm_config
 from app.agent.call_llm import call_lumen_agent
 from sqlalchemy.orm import Session
@@ -112,6 +112,35 @@ async def chat(
         "Answer the user's question clearly and concisely. "
         "If you are not sure, say you are not sure."
     )
+    
+    # Load URL contents from DialogSource if dialog_id exists
+    url_contents_context = ""
+    url_citations_map = {}  # Map URL to citation index for merging
+    if dialog_id:
+        url_sources = db.query(DialogSource).filter(
+            DialogSource.dialog_id == dialog_id,
+            DialogSource.source_type == SourceTypeEnum.url,
+            DialogSource.content.isnot(None)
+        ).order_by(DialogSource.created_at.asc()).all()
+        
+        if url_sources:
+            url_contents_context = "\n\n[Previously accessed URLs in this conversation (you can reference these when answering questions):]\n"
+            for i, source in enumerate(url_sources, 1):
+                url_contents_context += f"[{i}] {source.file_name or source.source_value}\n"
+                url_contents_context += f"    URL: {source.source_value}\n"
+                if source.content:
+                    # Include a preview of the content (first 500 chars)
+                    content_preview = source.content[:500] + "..." if len(source.content) > 500 else source.content
+                    url_contents_context += f"    Content preview: {content_preview}\n"
+                # Store mapping for citation merging
+                url_citations_map[source.source_value] = {
+                    'index': i,
+                    'title': source.file_name or source.source_value,
+                    'url': source.source_value,
+                    'type': source.file_type or 'url'
+                }
+            url_contents_context += "\nWhen referencing information from these URLs, use citation format [1], [2], etc. based on the index above.\n"
+            url_contents_context += "The full content of these URLs is available in the conversation context.\n"
 
     # Optionally include a short description of context in the prompt
     context_snippet = ""
@@ -130,7 +159,7 @@ async def chat(
             pass
 
     # Build messages array with chat history if dialog_id is provided
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = [{"role": "system", "content": system_prompt + url_contents_context}]
     
     # Add chat history if dialog exists
     if dialog_id and dialog:
@@ -141,9 +170,51 @@ async def chat(
         
         # Add historical messages to the context
         for msg in chat_messages:
+            message_content = msg.content or ""
+            
+            # Include citations in the message content for context (especially for agent messages)
+            # This helps LLM understand which papers were mentioned in previous messages
+            # Format citations as a readable reference list that LLM can understand
+            if msg.citations and isinstance(msg.citations, list) and len(msg.citations) > 0:
+                # Only add citations context if not already present in content
+                # Check if content already has citation metadata or references section
+                has_citation_context = (
+                    "[References" in message_content or 
+                    "[CITATION_METADATA]" in message_content or
+                    "References from this message" in message_content
+                )
+                
+                if not has_citation_context:
+                    citations_text = "\n\n[References mentioned in this response:]\n"
+                    for i, citation in enumerate(msg.citations, 1):
+                        citation_index = citation.get('index', i)
+                        title = citation.get('title', 'Untitled')
+                        authors = citation.get('authors', [])
+                        year = citation.get('year')
+                        venue = citation.get('venue', '')
+                        paper_id = citation.get('paperId', '')
+                        
+                        # Format: [1] Title by Author1, Author2 (Year) - Venue
+                        citations_text += f"[{citation_index}] {title}"
+                        if authors and len(authors) > 0:
+                            author_list = ', '.join(authors[:2])
+                            if len(authors) > 2:
+                                author_list += f" et al."
+                            citations_text += f" by {author_list}"
+                        if year:
+                            citations_text += f" ({year})"
+                        if venue:
+                            citations_text += f" - {venue}"
+                        if paper_id:
+                            citations_text += f" [Paper ID: {paper_id}]"
+                        citations_text += "\n"
+                    
+                    message_content = message_content + citations_text
+            
             messages.append({
                 "role": msg.role.value,
-                "content": msg.content or ""
+                "content": message_content,
+                "citations": msg.citations  # Also include raw citations for reference
             })
     
     # Add current user message
@@ -156,7 +227,6 @@ async def chat(
         # Get user's timezone from database
         user = db.query(User).filter(User.id == user_id).first()
         user_timezone = user.timezone if user and user.timezone else timezone
-        print(f"[CHAT] User timezone from DB: {user.timezone if user else None}, from request: {timezone}, final: {user_timezone}")
         
         # Determine provider and get API key
         model_lower = model.lower()
@@ -190,8 +260,16 @@ async def chat(
             "api_key": api_key
         }
         
+        # Log input messages sent to LLM
+        print(f"[CHAT] Input messages to LLM ({len(messages)} messages):")
+        for i, msg in enumerate(messages, 1):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            content_preview = content[:200] + "..." if len(content) > 200 else content
+            print(f"  [{i}] {role}: {content_preview}")
+        
         # Call lumen agent with tools
-        response, reasoning_steps, citations = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
+        response, reasoning_steps, citations, url_contents = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
         
         # Check if response is valid
         if not response or (isinstance(response, str) and not response.strip()):
@@ -200,12 +278,60 @@ async def chat(
                 detail="Agent did not generate a valid response. Please try again."
             )
         
+        # Save URL contents to DialogSource if dialog_id exists
+        saved_sources = []
+        if dialog_id and url_contents:
+            for url_content in url_contents:
+                # Check if this URL already exists in DialogSource for this dialog
+                existing_source = db.query(DialogSource).filter(
+                    DialogSource.dialog_id == dialog_id,
+                    DialogSource.source_type == SourceTypeEnum.url,
+                    DialogSource.source_value == url_content['url']
+                ).first()
+                
+                if not existing_source:
+                    # Create new DialogSource entry
+                    new_source = DialogSource(
+                        dialog_id=dialog_id,
+                        file_name=url_content.get('title', url_content['url']),
+                        source_type=SourceTypeEnum.url,
+                        source_value=url_content['url'],
+                        content=url_content.get('content', ''),
+                        file_type=url_content.get('type', 'url')
+                    )
+                    db.add(new_source)
+                    saved_sources.append({
+                        'url': url_content['url'],
+                        'title': url_content.get('title', url_content['url'])
+                    })
+                else:
+                    # Update existing source with new content (in case URL was re-read)
+                    existing_source.content = url_content.get('content', existing_source.content)
+                    existing_source.file_name = url_content.get('title', existing_source.file_name)
+                    saved_sources.append({
+                        'url': url_content['url'],
+                        'title': url_content.get('title', url_content['url'])
+                    })
+            
+            if saved_sources:
+                db.commit()
+        
+        # Merge URL citations with existing citations if URLs were referenced
+        # Check if response mentions URLs from saved sources
+        final_citations = citations if citations else []
+        if dialog_id and saved_sources and response:
+            # URLs are already in citations from search_url tool, so no need to merge
+            # But we ensure citations include URL information
+            pass
+        
+        print("Message list: ", message)
         return {
             "message": response if isinstance(response, str) else str(response),
             "reasoning": reasoning_steps if reasoning_steps else None,
             "confidence": None,
             "sources": [],
             "citations": citations if citations else [],
+            "url_contents": saved_sources if saved_sources else None,
         }
     except ValueError as e:
         # API key configuration errors

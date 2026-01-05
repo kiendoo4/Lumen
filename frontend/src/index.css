@@ -50,6 +50,11 @@
   --shadow: rgba(0, 0, 0, 0.3);
 }
 
+html {
+  overflow: hidden;
+  height: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -59,9 +64,12 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
+  overflow: hidden;
+  height: 100%;
 }
 
 #root {
   width: 100%;
-  height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }

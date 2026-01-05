@@ -15,6 +15,16 @@ from datetime import datetime
 # Import tools
 from app.agent.tools.search_duckduckgo import search_duckduckgo
 from app.agent.tools.search_url import search_url
+from app.agent.tools.search_semantic_scholar import (
+    search_semantic_scholar,
+    get_paper_by_id,
+    get_author_by_id,
+    search_authors,
+    get_paper_citations,
+    get_paper_references,
+    get_recommended_papers,
+    get_author_papers
+)
 
 root_agent = LlmAgent(
     name="root_agent",
@@ -25,25 +35,79 @@ Your capabilities include:
 1. Answering questions based on your knowledge
 2. Searching the web using DuckDuckGo when you need current information or are uncertain about an answer
 3. Reading and extracting information from specific URLs when users ask you to visit a webpage
+4. Comprehensive Semantic Scholar API tools for academic research
+
+Semantic Scholar Tools (use these for academic research):
+- search_semantic_scholar: Search for papers by keywords, topics, or titles. PRIMARY tool for finding academic papers.
+- get_paper_by_id: Get detailed information about a specific paper using its ID, DOI, or arXiv ID.
+- search_authors: Search for researchers/authors by name.
+- get_author_by_id: Get detailed information about an author including their papers, citations, and h-index.
+- get_paper_citations: Get all papers that cite a specific paper (forward citations).
+- get_paper_references: Get all papers that a specific paper references (bibliography).
+- get_recommended_papers: Get paper recommendations based on a seed paper.
+- get_author_papers: Get all papers published by a specific author.
 
 Guidelines:
-- ALWAYS use the search_duckduckgo tool when:
+- ALWAYS use search_semantic_scholar when:
   * Users ask about research papers, academic papers, scientific publications, or scholarly articles
+  * Users want to find papers on a specific topic, by a specific author, or with specific keywords
+  * Users ask for academic literature, scientific studies, or research publications
+  * This is the PRIMARY tool for academic paper searches - use it instead of search_duckduckgo for scholarly content
+
+- Use get_paper_by_id when:
+  * Users explicitly provide a paper ID (e.g., "paper ID: 123456") or DOI
+  * Users provide a Semantic Scholar paper ID or URL (e.g., https://www.semanticscholar.org/paper/...)
+  * Users want detailed metadata about a paper from Semantic Scholar database
+  * You need comprehensive metadata about a paper (citations, references, fields of study, etc.)
+  * IMPORTANT: Do NOT use get_paper_by_id for PDF URLs (like arxiv.org/pdf/...). Use search_url instead to read the PDF content.
+  * Do NOT try to extract paper ID from PDF URLs - if user provides a PDF URL and asks to read it, use search_url.
+
+- Use search_authors when:
+  * Users want to find researchers or authors by name
+  * Users ask "who is [author name]" or "find papers by [author]"
+
+- Use get_author_by_id when:
+  * You have an author ID and need their detailed profile, statistics, and publications
+  * Users want to see an author's h-index, total citations, or recent papers
+
+- Use get_paper_citations when:
+  * Users want to see who cited a specific paper
+  * Users ask "what papers cite this paper" or "who cited [paper]"
+
+- Use get_paper_references when:
+  * Users want to see the bibliography/references of a specific paper
+  * Users ask "what papers does this paper reference" or "show references of [paper]"
+
+- Use get_recommended_papers when:
+  * Users have a specific paper ID and want similar or related papers
+  * Users ask for recommendations based on a paper they're interested in
+
+- Use get_author_papers when:
+  * Users want to see all papers by a specific author
+  * You have an author ID and need their publication list
+
+- Use the search_duckduckgo tool when:
   * Users ask about current events, recent news, or up-to-date information
-  * Users ask about specific topics that may have recent developments or updates
-  * You are not certain about an answer or need to verify information
-  * Users ask for recommendations, lists, or collections of resources (papers, articles, websites, etc.)
-  * The question requires finding specific information that might not be in your training data
+  * Users ask about specific topics that may have recent developments or updates (non-academic)
+  * You are not certain about an answer or need to verify information (non-academic)
+  * Users ask for general recommendations, lists, or collections of resources (non-academic)
+  * The question requires finding specific information that might not be in your training data (non-academic)
 
 - Use the search_url tool when:
   * Users explicitly ask you to visit a specific URL or webpage
-  * Users provide a URL and ask you to read or extract information from it
+  * Users provide a URL (including PDF URLs like arxiv.org/pdf/...) and ask you to read or extract information from it
   * Users say "go to this website", "read this page", "check this link", etc.
+  * Users provide a PDF URL (e.g., https://arxiv.org/pdf/1806.10574) - use search_url to read the PDF content directly
+  * IMPORTANT: When user says "read this link" or "vào link này đọc", ALWAYS use search_url, NOT get_paper_by_id
+  * The search_url tool can handle both HTML pages and PDF files (including arXiv PDFs)
 
 - Always provide clear, accurate, and helpful responses
 - Cite your sources when using information from web searches or URLs
 - When citing sources from search results, use the format ##i$$ where i is the index number (1, 2, 3, etc.) to reference the search result. For example, if you mention information from the first search result, use ##1$$, from the second result use ##2$$, and so on.
 - The citation format ##i$$ will be automatically rendered as a clickable citation link in the UI
+- IMPORTANT: When users reference papers from previous messages (e.g., "the first paper", "paper [1]", "that paper about X"), check the conversation history for citations. Previous messages include a "[References mentioned in this response:]" section that lists all papers with their titles, authors, years, and paper IDs. You can reference these papers directly without needing to search again.
+- If a user asks about a paper that was mentioned in a previous message, you can refer to it using the citation number from that message (e.g., "As mentioned in paper [1] from the previous response...").
+- IMPORTANT: When you use search_url to read a URL, that URL's content is automatically saved in the conversation context. If the user later asks about information from a URL that was read earlier, you can reference it using citations. The system will show you "[Previously accessed URLs in this conversation:]" with their content previews. Use the citation format [1], [2], etc. to reference these URLs when answering questions based on their content.
 - If you cannot find the information requested after searching, be honest about it and suggest alternatives
 - Do NOT say you cannot help without first trying to search for the information using the search_duckduckgo tool
 """
@@ -68,10 +132,18 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
     model_card = llm_model_config.get('llm_factory').lower() + "/" + llm_model_config.get('llm_name')
     model = LiteLlm(model_card, api_key=llm_model_config.get('api_key'))
     root_agent.model = model
-    root_agent.tools = [search_duckduckgo, search_url]
-    
-    # Add current date and timezone to instruction
-    print(f"[LUMEN_AGENT] Received timezone: {timezone}")
+    root_agent.tools = [
+        search_duckduckgo, 
+        search_url, 
+        search_semantic_scholar,
+        get_paper_by_id,
+        get_author_by_id,
+        search_authors,
+        get_paper_citations,
+        get_paper_references,
+        get_recommended_papers,
+        get_author_papers
+    ]
     if timezone:
         # Use user's timezone if provided
         try:
@@ -250,6 +322,7 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
         events = []
         reasoning_steps = []  # Store tool calls for reasoning display
         citations = []  # Store citation metadata from search results
+        url_contents = []  # Store URL content for database storage
         response = ""
         async for event in runner.run_async(
             user_id=USER_ID, 
@@ -297,20 +370,45 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
                         else:
                             result_str = str(result)
                         
-                        # Extract citation metadata from search_duckduckgo results
-                        if tool_name == 'search_duckduckgo' and result_str:
-                            import json
-                            import re
-                            # Look for citation metadata in the result
-                            citation_match = re.search(r'\[CITATION_METADATA\](.*?)\[/CITATION_METADATA\]', result_str, re.DOTALL)
-                            if citation_match:
-                                try:
-                                    citation_data = json.loads(citation_match.group(1))
-                                    citations.extend(citation_data)
-                                    # Remove citation metadata from display result
-                                    result_str = re.sub(r'\[CITATION_METADATA\].*?\[/CITATION_METADATA\]', '', result_str, flags=re.DOTALL).strip()
-                                except:
-                                    pass
+                        # Extract citation metadata from search results
+                        semantic_scholar_tools = [
+                            'search_semantic_scholar',
+                            'get_paper_by_id',
+                            'get_author_by_id',
+                            'search_authors',
+                            'get_paper_citations',
+                            'get_paper_references',
+                            'get_recommended_papers',
+                            'get_author_papers'
+                        ]
+                        import json
+                        import re
+                        
+                        # Look for citation metadata in the result
+                        citation_match = re.search(r'\[CITATION_METADATA\](.*?)\[/CITATION_METADATA\]', result_str, re.DOTALL)
+                        if citation_match:
+                            try:
+                                citation_data = json.loads(citation_match.group(1))
+                                
+                                # Handle search_url tool specifically - store URL content
+                                if tool_name == 'search_url' and citation_data:
+                                    for citation in citation_data:
+                                        # Store URL content for database persistence
+                                        if 'url' in citation and 'full_content' in citation:
+                                            url_contents.append({
+                                                'url': citation['url'],
+                                                'title': citation.get('title', citation['url']),
+                                                'content': citation['full_content'],
+                                                'type': citation.get('type', 'url')
+                                            })
+                                
+                                # Add to citations list
+                                citations.extend(citation_data)
+                                # Remove citation metadata from display result
+                                result_str = re.sub(r'\[CITATION_METADATA\].*?\[/CITATION_METADATA\]', '', result_str, flags=re.DOTALL).strip()
+                            except Exception as e:
+                                print(f"[CALL_LLM] Error parsing citation metadata: {e}")
+                                pass
                         
                         # Store full result (don't truncate, let frontend handle it)
                         reasoning_steps.append({
@@ -328,7 +426,7 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
                             response = part.text
                             break
         
-        return response, reasoning_steps, citations
+        return response, reasoning_steps, citations, url_contents
         
     finally:
         # Clean up session asynchronously
@@ -358,4 +456,4 @@ async def call_lumen_agent(llm_model_config, messages, timezone=None):
         # Return error message if something goes wrong
         error_msg = f"Error processing request: {str(e)}"
         print(f"[LUMEN_AGENT] Error: {error_msg}")
-        return "", [], []
+        return "", [], [], []

@@ -118,6 +118,7 @@ class DialogSource(Base):
     file_size = Column(BigInteger)
     source_type = Column(Enum(SourceTypeEnum), default=SourceTypeEnum.file)
     source_value = Column(String(500))
+    content = Column(Text)  # Store URL content or file content for retrieval
     created_at = Column(TIMESTAMP, server_default=func.now())
     
     dialog = relationship("Dialog", back_populates="sources")

@@ -3,19 +3,19 @@ import MessageList from './MessageList';
 import InputArea from './InputArea';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import DialogSettingsModal from '../modals/DialogSettingsModal';
-import CreateConversationModal from '../modals/CreateConversationModal';
-import ConversationSettingsModal from '../modals/ConversationSettingsModal';
-import DeleteConfirmationModal from '../modals/DeleteConfirmationModal';
-import DialogSearchModal from '../modals/DialogSearchModal';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { useAuth } from '../../contexts/AuthContext';
+import DialogSettingsModal from './DialogSettingsModal';
+import CreateConversationModal from './CreateConversationModal';
+import ConversationSettingsModal from './ConversationSettingsModal';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
+import DialogSearchModal from './DialogSearchModal';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import './ChatInterface.css';
 
 function ChatInterface({ onProfileClick }) {
   const { t } = useLanguage();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedDialogId, setSelectedDialogId] = useState(null);
@@ -31,7 +31,6 @@ function ChatInterface({ onProfileClick }) {
     papers: []
   });
   const messagesEndRef = useRef(null);
-  const messageListRef = useRef(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -103,7 +102,6 @@ function ChatInterface({ onProfileClick }) {
               reasoning: m.reasoning,
               confidence: m.confidence,
               sources: m.sources,
-              citations: m.citations || [],
               timestamp: new Date(m.created_at)
             })));
           } catch (error) {
@@ -118,13 +116,7 @@ function ChatInterface({ onProfileClick }) {
   };
 
   const scrollToBottom = () => {
-    // Scroll within the message-list container, not the whole page
-    if (messageListRef.current) {
-      messageListRef.current.scrollTo({
-        top: messageListRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const [isCreateConversationModalOpen, setIsCreateConversationModalOpen] = useState(false);
@@ -251,7 +243,7 @@ function ChatInterface({ onProfileClick }) {
     setIsDialogSearchOpen(true);
   };
 
-  const handleSendMessage = async (text, files = [], baseMessages = null) => {
+  const handleSendMessage = async (text, files = []) => {
     if ((!text.trim() && files.length === 0) || isLoading) return;
 
     if (!selectedConversationId || !selectedDialogId) {
@@ -272,20 +264,14 @@ function ChatInterface({ onProfileClick }) {
       timestamp: new Date()
     };
 
-    // Use baseMessages if provided (for redo), otherwise use current messages state
-    const currentBaseMessages = baseMessages !== null ? baseMessages : messages;
-    setMessages([...currentBaseMessages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      // Get user's timezone from profile, fallback to browser timezone or Ho Chi Minh City
-      const userTimezone = user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh';
-      
       const formData = new FormData();
       formData.append('message', text);
       formData.append('dialog_id', selectedDialogId);
       formData.append('context', JSON.stringify(context));
-      formData.append('timezone', userTimezone);
       files.forEach((file) => {
         formData.append('files', file);
       });
@@ -296,34 +282,14 @@ function ChatInterface({ onProfileClick }) {
 
       const data = response.data;
 
-      // Check if response is valid (has message content)
-      const isValidResponse = data && data.message && data.message.trim().length > 0;
-
-      if (!isValidResponse) {
-        // Invalid response - remove user message from UI and show error
-        setIsLoading(false);
-        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
-        
-        const errorMessage = {
-          id: Date.now() + 1,
-          role: 'agent',
-          content: t('chat.error'),
-          isError: true,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        return; // Don't save anything to database
-      }
-
-      // Only add agent message if we got a valid response
+      // Only add agent message if we got a successful response
       const agentMessage = {
         id: Date.now() + 1,
         role: 'agent',
-        content: data.message,
+        content: data.message || t('chat.error'),
         reasoning: data.reasoning || [],
         confidence: data.confidence,
         sources: data.sources || [],
-        citations: data.citations || [],
         timestamp: new Date()
       };
 
@@ -332,7 +298,7 @@ function ChatInterface({ onProfileClick }) {
       // Set loading to false BEFORE saving messages to prevent "thinking" indicator after response
       setIsLoading(false);
       
-      // Only save messages to database AFTER valid response
+      // Only save messages to database AFTER successful response
       try {
         // Save user message first
         const userMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
@@ -343,11 +309,10 @@ function ChatInterface({ onProfileClick }) {
         // Save agent message
         const agentMessageResponse = await axios.post(`/api/messages/dialog/${selectedDialogId}`, {
           role: 'agent',
-          content: data.message,
+          content: data.message || '',
           reasoning: data.reasoning || null,
           confidence: data.confidence || null,
-          sources: data.sources || null,
-          citations: data.citations || null
+          sources: data.sources || null
         });
         
         // Update messages with real IDs from database
@@ -406,17 +371,8 @@ function ChatInterface({ onProfileClick }) {
       } catch (error) {
         console.error('Error saving messages:', error);
         console.error('Error details:', error.response?.data);
-        // If save fails, remove both messages from UI since they weren't saved
-        setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== agentMessage.id));
-        
-        const errorMessage = {
-          id: Date.now() + 1,
-          role: 'agent',
-          content: t('chat.error'),
-          isError: true,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
+        // Don't remove messages from UI even if save fails
+        // They will be lost on reload but at least user can see them now
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -506,131 +462,40 @@ function ChatInterface({ onProfileClick }) {
   };
 
   const handleDeleteMessage = async (messageId) => {
-    // Find the index of the message to delete
-    const messageIndex = messages.findIndex(m => m.id === messageId);
-    if (messageIndex === -1) return;
-
-    // Remove the message and all subsequent messages from UI immediately
-    // Backend will delete the user message and all subsequent messages
-    setMessages(prev => {
-      return prev.slice(0, messageIndex);
-    });
-
-    // Delete the message and all subsequent messages from database
-    // Backend will automatically delete ALL subsequent messages (both user and agent)
     try {
       await axios.delete(`/api/messages/${messageId}`);
+      // Remove message and all subsequent messages (agent response)
+      setMessages(prev => {
+        const index = prev.findIndex(m => m.id === messageId);
+        if (index !== -1) {
+          // Remove the user message and all messages after it (including agent response)
+          return prev.slice(0, index);
+        }
+        return prev;
+      });
     } catch (error) {
-      // Ignore 404 errors (message might not be saved yet)
-      if (error.response?.status !== 404) {
-        console.error('Error deleting message:', error);
-      }
+      console.error('Error deleting message:', error);
     }
   };
 
   const handleRedoMessage = async (messageId) => {
+    // Find the message to redo
     const messageToRedo = messages.find(m => m.id === messageId);
     if (!messageToRedo || messageToRedo.role !== 'user') return;
-  
-    const messageContent = messageToRedo.content;
-    const messageFiles = messageToRedo.files || [];
-  
-    // Find the index of the user message
-    const userMessageIndex = messages.findIndex(m => m.id === messageId);
-    if (userMessageIndex === -1) return;
 
-    // Remove all subsequent messages from UI immediately (keep only messages before the one to redo)
-    setMessages(prev => prev.slice(0, userMessageIndex));
-  
-    try {
-      // Delete the user message and all subsequent messages from database
-      await axios.delete(`/api/messages/${messageId}`);
-      
-      // Reload messages from database to get the fresh state
-      if (selectedDialogId) {
-        const messagesResponse = await axios.get(`/api/messages/dialog/${selectedDialogId}`);
-        const freshMessages = messagesResponse.data.map(m => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          reasoning: m.reasoning,
-          confidence: m.confidence,
-          sources: m.sources,
-          citations: m.citations || [],
-          timestamp: new Date(m.created_at)
-        }));
-        
-        // Update UI with fresh messages from database
-        setMessages(freshMessages);
-        
-        // Wait longer to ensure database commit is complete and backend will see the changes
-        // This prevents race condition where backend might still see old messages
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Pass freshMessages to handleSendMessage to ensure it uses the correct base
-        handleSendMessage(messageContent, messageFiles, freshMessages);
-      } else {
-        // If no dialog selected, just send with current state
-        handleSendMessage(messageContent, messageFiles);
-      }
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error('Error deleting message:', error);
-        return;
-      }
-      // If 404, message wasn't saved, just send it
-      handleSendMessage(messageContent, messageFiles);
-    }
-  };
-
-  const handlePinDialog = async () => {
-    if (!selectedDialogId) return;
+    // Delete the message and its response
+    await handleDeleteMessage(messageId);
     
-    try {
-      const newPinnedState = !selectedDialog?.is_pinned;
-      await axios.put(`/api/dialogs/${selectedDialogId}`, {
-        is_pinned: newPinnedState ? 1 : 0
-      });
-      await loadConversations();
-      await loadDialogData();
-    } catch (error) {
-      console.error('Error pinning dialog:', error);
-    }
+    // Resend the message
+    setTimeout(() => {
+      handleSendMessage(messageToRedo.content, messageToRedo.files || []);
+    }, 100);
   };
 
-  const handleRenameDialog = async () => {
-    if (!selectedDialogId || !selectedDialog) return;
-    
-    const newTitle = window.prompt(t('settings.renameDialog'), selectedDialog.title);
-    if (newTitle && newTitle.trim() && newTitle !== selectedDialog.title) {
-      try {
-        await axios.put(`/api/dialogs/${selectedDialogId}`, {
-          title: newTitle.trim()
-        });
-        await loadConversations();
-        await loadDialogData();
-      } catch (error) {
-        console.error('Error renaming dialog:', error);
-        alert(t('settings.renameError'));
-      }
-    }
-  };
-
-  const handleDeleteDialogFromHeader = () => {
-    if (!selectedDialogId || !selectedConversationId || !selectedDialog) return;
-    handleDeleteDialog(selectedConversationId, selectedDialogId);
-  };
 
   return (
     <div className="chat-interface">
-      <Header 
-        onProfileClick={onProfileClick} 
-        dialogTitle={selectedDialog?.title}
-        onPinDialog={handlePinDialog}
-        isDialogPinned={selectedDialog?.is_pinned === 1}
-        onRenameDialog={handleRenameDialog}
-        onDeleteDialog={handleDeleteDialogFromHeader}
-      />
+      <Header onProfileClick={onProfileClick} />
       <div className="chat-container">
         <Sidebar
           conversations={conversations}
@@ -650,7 +515,6 @@ function ChatInterface({ onProfileClick }) {
             messages={messages} 
             isLoading={isLoading}
             messagesEndRef={messagesEndRef}
-            messageListRef={messageListRef}
             onDeleteMessage={handleDeleteMessage}
             onRedoMessage={handleRedoMessage}
           />
