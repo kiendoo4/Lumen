@@ -139,8 +139,10 @@ async def chat(
                     'url': source.source_value,
                     'type': source.file_type or 'url'
                 }
-            url_contents_context += "\nWhen referencing information from these URLs, use citation format [1], [2], etc. based on the index above.\n"
+            url_contents_context += "\nCRITICAL: When referencing information from these URLs in your response, you MUST use citation format [1], [2], etc. based on the index above.\n"
+            url_contents_context += "For example, if you use information from the first URL, add [1] at the end of that statement. If you use information from the second URL, add [2], etc.\n"
             url_contents_context += "The full content of these URLs is available in the conversation context.\n"
+            url_contents_context += "ALWAYS include citations when using information from previously accessed URLs - this is mandatory for proper attribution.\n"
 
     # Optionally include a short description of context in the prompt
     context_snippet = ""
@@ -317,20 +319,69 @@ async def chat(
                 db.commit()
         
         # Merge URL citations with existing citations if URLs were referenced
-        # Check if response mentions URLs from saved sources
-        final_citations = citations if citations else []
-        if dialog_id and saved_sources and response:
-            # URLs are already in citations from search_url tool, so no need to merge
-            # But we ensure citations include URL information
-            pass
+        # Check if response mentions URLs from saved sources (even if not from new tool calls)
+        final_citations = citations.copy() if citations else []
+        
+        if dialog_id and url_citations_map and response:
+            import re
+            # Check if response contains citation patterns like [1], [2], etc.
+            # Find all citation references in the response
+            citation_refs = re.findall(r'\[(\d+)\]', response)
+            
+            # Get unique citation indices mentioned in response
+            mentioned_indices = set()
+            for ref in citation_refs:
+                try:
+                    idx = int(ref)
+                    mentioned_indices.add(idx)
+                except:
+                    pass
+            
+            # Merge citations from url_citations_map if they were referenced
+            existing_citation_indices = {c.get('index', i+1) for i, c in enumerate(final_citations)}
+            
+            for url, citation_info in url_citations_map.items():
+                citation_index = citation_info['index']
+                # If this URL citation was mentioned in response and not already in citations
+                if citation_index in mentioned_indices and citation_index not in existing_citation_indices:
+                    # Add citation for this URL
+                    final_citations.append({
+                        'index': citation_index,
+                        'url': citation_info['url'],
+                        'title': citation_info['title'],
+                        'type': citation_info.get('type', 'url')
+                    })
+        
+        # Sort citations by index to ensure consistent ordering
+        final_citations.sort(key=lambda x: x.get('index', 0))
+        
+        # Clean up response: remove citation reference sections that might have been copied from history
+        cleaned_response = response if isinstance(response, str) else str(response)
+        if cleaned_response:
+            import re
+            # Simply remove "[References mentioned in this response:]" and everything after it
+            # This pattern can be copied by LLM from historical messages
+            cleaned_response = re.sub(
+                r'\[References mentioned in this response:\].*$',
+                '',
+                cleaned_response,
+                flags=re.DOTALL | re.IGNORECASE
+            )
+            cleaned_response = re.sub(
+                r'\[References from this message:\].*$',
+                '',
+                cleaned_response,
+                flags=re.DOTALL | re.IGNORECASE
+            )
+            cleaned_response = cleaned_response.strip()
         
         print("Message list: ", message)
         return {
-            "message": response if isinstance(response, str) else str(response),
+            "message": cleaned_response,
             "reasoning": reasoning_steps if reasoning_steps else None,
             "confidence": None,
             "sources": [],
-            "citations": citations if citations else [],
+            "citations": final_citations if final_citations else [],
             "url_contents": saved_sources if saved_sources else None,
         }
     except ValueError as e:

@@ -27,7 +27,7 @@ function Settings() {
   }, [isOpen]);
 
   // If used in ProfilePage, render as full page content
-  const isInProfilePage = window.location.pathname.includes('/setting');
+  const isInProfilePage = window.location.pathname.includes('/settings');
   
   if (isInProfilePage) {
     return (

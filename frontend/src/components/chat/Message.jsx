@@ -206,8 +206,35 @@ function Message({ message, onDelete, onRedo }) {
         </div>
         {/* Citations list at the bottom */}
         {(() => {
-          const citations = message.citations || [];
-          if (citations.length === 0) return null;
+          const allCitations = message.citations || [];
+          if (allCitations.length === 0) return null;
+
+          // Only show citations that are actually referenced in the answer text.
+          // We still keep all citations in the backend/database; this filtering is UI-only.
+          let rawContent = message.content || '';
+          // Normalize legacy ##i$$ format to [i] so we can detect them uniformly
+          rawContent = rawContent.replace(/##(\d+)\$\$/g, (match, index) => `[${index}]`);
+
+          const referencedIds = new Set();
+          const citationRefRegex = /\[(\d+)\](?!\()/g;
+          let match;
+          // Collect all citation ids that appear as [number] (and are not markdown links)
+          while ((match = citationRefRegex.exec(rawContent)) !== null) {
+            const id = parseInt(match[1], 10);
+            if (!Number.isNaN(id)) {
+              referencedIds.add(id);
+            }
+          }
+
+          // If we didn't detect any explicit citation markers, fall back to showing all
+          const citationsToDisplay = referencedIds.size > 0
+            ? allCitations.filter((citation, idx) => {
+                const citationId = citation.index !== undefined ? citation.index : (idx + 1);
+                return referencedIds.has(citationId);
+              })
+            : allCitations;
+
+          if (citationsToDisplay.length === 0) return null;
           
           return (
             <div className="citations-list">
@@ -219,7 +246,7 @@ function Message({ message, onDelete, onRedo }) {
                 <span className="citations-toggle-text">
                   {t('message.references') || 'References'}
                 </span>
-                <span className="citations-toggle-count">({citations.length})</span>
+                <span className="citations-toggle-count">({citationsToDisplay.length})</span>
                 <svg 
                   className={`citations-toggle-icon ${isCitationsExpanded ? 'expanded' : ''}`}
                   width="16" 
@@ -234,7 +261,7 @@ function Message({ message, onDelete, onRedo }) {
               </button>
               {isCitationsExpanded && (
                 <ol className="citations-items">
-                {citations.map((citation, idx) => {
+                {citationsToDisplay.map((citation, idx) => {
                   const citationId = citation.index !== undefined ? citation.index : (idx + 1);
                   const isSemanticScholar = citation.authors || citation.year || citation.venue;
                   

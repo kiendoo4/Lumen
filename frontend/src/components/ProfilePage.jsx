@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -407,6 +408,7 @@ function LLMProvidersTab() {
 }
 
 function ProfilePage({ onBack }) {
+  const navigate = useNavigate();
   const { t, language, toggleLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const { user, updateProfile, changePassword, logout } = useAuth();
@@ -437,13 +439,20 @@ function ProfilePage({ onBack }) {
 
     try {
       setLoading(true);
-      const response = await axios.put('/api/auth/profile', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setAvatarUrl(response.data.user.avatar_url || '/default_avatar.jpeg');
-      setSuccess(t('profile.avatarUpdated'));
-      setTimeout(() => setSuccess(''), 3000);
+      setError('');
+      
+      // Use updateProfile from AuthContext which will update user state
+      // The useEffect will automatically sync avatarUrl when user state updates
+      const result = await updateProfile(formData);
+      
+      if (result.success) {
+        setSuccess(t('profile.avatarUpdated'));
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(result.error || t('profile.updateError'));
+      }
     } catch (error) {
+      console.error('Avatar upload error:', error);
       setError(error.response?.data?.detail || t('profile.updateError'));
     } finally {
       setLoading(false);
@@ -493,7 +502,9 @@ function ProfilePage({ onBack }) {
 
   const handleLogout = () => {
     logout();
-    onBack();
+    // Navigate directly to /login without redirect parameter
+    // Replace current history entry to prevent back navigation issues
+    navigate('/login', { replace: true });
   };
 
   return (

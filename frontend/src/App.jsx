@@ -290,8 +290,14 @@ function ProtectedRoute({ children }) {
   // Nếu có token nhưng chưa có user (đang đợi /api/auth/me), vẫn đợi
   // CHỈ redirect khi CHẮC CHẮN không có user (không có token VÀ không có user)
   if (!user && !hasToken) {
-    // Lưu route hiện tại để redirect lại sau khi login
-    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+    // Lưu route hiện tại để redirect lại sau khi login (chỉ cho /chat)
+    // Không lưu /settings để tránh user bị redirect về settings sau khi login
+    const currentPath = location.pathname;
+    if (currentPath === '/chat') {
+      return <Navigate to={`/login?redirect=${encodeURIComponent(currentPath)}`} replace />;
+    }
+    // Cho tất cả các route khác (bao gồm /settings), chỉ redirect về login
+    return <Navigate to="/login" replace />;
   }
 
   // Nếu có token nhưng chưa có user, đợi thêm (có thể API call đang trong progress)
@@ -324,8 +330,17 @@ function PublicRoute({ children }) {
 
   // Nếu đã đăng nhập và đang ở /login thì redirect về route ban đầu hoặc /chat
   if (user && location.pathname === '/login') {
-    const redirectTo = new URLSearchParams(location.search).get('redirect') || '/chat';
-    return <Navigate to={redirectTo} replace />;
+    const urlParams = new URLSearchParams(location.search);
+    const redirectTo = urlParams.get('redirect');
+    
+    // Validate redirect URL để tránh open redirect vulnerability
+    // Chỉ cho phép redirect về /chat, không cho /settings
+    if (redirectTo && redirectTo.startsWith('/chat')) {
+      return <Navigate to={redirectTo} replace />;
+    }
+    
+    // Default redirect to /chat
+    return <Navigate to="/chat" replace />;
   }
 
   // Còn lại thì render bình thường
@@ -336,23 +351,36 @@ function ChatPage() {
   const navigate = useNavigate();
   return (
     <div className="app">
-      <ChatInterface onProfileClick={() => navigate('/setting')} />
+      <ChatInterface onProfileClick={() => navigate('/settings')} />
     </div>
   );
 }
 
 function ProfilePageRoute() {
   const navigate = useNavigate();
-  return <ProfilePage onBack={() => navigate('/chat')} />;
+  const location = useLocation();
+  
+  const handleBack = () => {
+    // Check if there's a specific return path, otherwise go to chat
+    const urlParams = new URLSearchParams(location.search);
+    const returnTo = urlParams.get('from') || '/chat';
+    
+    // Validate return path
+    if (returnTo === '/chat') {
+      navigate('/chat');
+    } else {
+      navigate('/chat'); // Default fallback
+    }
+  };
+  
+  return <ProfilePage onBack={handleBack} />;
 }
 
 function NotFoundRoute() {
-  const { user, loading } = useAuth();
-  const location = useLocation();
+  const { user, loading, initialized } = useAuth();
   
-  // Don't redirect if we're still loading or if user is authenticated
-  // This prevents redirecting away from valid routes during auth initialization
-  if (loading) {
+  // Don't redirect if we're still loading
+  if (loading || !initialized) {
     return (
       <div className="app-loading">
         <div className="loading-spinner">Loading...</div>
@@ -360,7 +388,7 @@ function NotFoundRoute() {
     );
   }
   
-  // Only redirect to /chat if user is authenticated, otherwise go to login
+  // Redirect authenticated users to /chat, unauthenticated to /login
   if (user) {
     return <Navigate to="/chat" replace />;
   }
@@ -376,11 +404,12 @@ function AppContent() {
           <AuthScreen />
         </PublicRoute>
       } />
-      <Route path="/setting" element={
+      <Route path="/settings" element={
         <ProtectedRoute>
           <ProfilePageRoute />
         </ProtectedRoute>
       } />
+      <Route path="/setting" element={<Navigate to="/settings" replace />} />
       <Route path="/chat" element={
         <ProtectedRoute>
           <ChatPage />

@@ -136,8 +136,24 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put('/api/auth/profile', profileData);
-      setUser(response.data.user);
+      // Handle both FormData (for avatar upload) and regular JSON
+      let response;
+      if (profileData instanceof FormData) {
+        response = await axios.put('/api/auth/profile', profileData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        // For regular profile updates, convert to FormData
+        const formData = new FormData();
+        if (profileData.username) formData.append('username', profileData.username);
+        if (profileData.timezone) formData.append('timezone', profileData.timezone);
+        response = await axios.put('/api/auth/profile', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      
+      // Backend returns UserResponse directly, not wrapped in { user: ... }
+      setUser(response.data);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.response?.data?.detail || 'Update failed' };
