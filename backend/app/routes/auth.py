@@ -5,7 +5,7 @@ from app.models import User
 from app.schemas import UserRegister, UserLogin, TokenResponse, UserResponse, UserInfoResponse, PasswordChange, ProfileUpdate
 from app.utils.auth import verify_password, get_password_hash, create_access_token
 from app.middleware.auth import get_current_user
-from app.utils.minio_client import minio_client, BUCKET_NAME, upload_file
+from app.utils.minio_client import minio_client, upload_file
 from typing import Optional
 
 router = APIRouter()

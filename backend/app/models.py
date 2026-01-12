@@ -136,4 +136,73 @@ class MessageFile(Base):
     
     message = relationship("Message", back_populates="files")
 
+class PaperDocument(Base):
+    __tablename__ = "paper_documents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_type = Column(String(50), nullable=False)
+    file_size = Column(BigInteger)
+    title = Column(String(500))
+    authors = Column(Text)
+    abstract = Column(Text)
+    total_pages = Column(Integer)
+    processing_status = Column(String(50), default="pending")  # pending, processing, completed, failed
+    qdrant_collection_name = Column(String(255))
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User")
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    chat_sessions = relationship("PaperChatSession", back_populates="document", cascade="all, delete-orphan")
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("paper_documents.id", ondelete="CASCADE"), nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    page_number = Column(Integer)
+    start_char = Column(Integer)
+    end_char = Column(Integer)
+    qdrant_point_id = Column(String(255))  # UUID in Qdrant
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    
+    document = relationship("PaperDocument", back_populates="chunks")
+
+class PaperChatSession(Base):
+    __tablename__ = "paper_chat_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    document_id = Column(Integer, ForeignKey("paper_documents.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    # LLM Configuration
+    llm_model = Column(String(100), default="gpt-4")
+    temperature = Column(DECIMAL(3, 2), default=0.70)
+    top_p = Column(DECIMAL(3, 2), default=0.90)
+    max_tokens = Column(Integer, default=2000)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User")
+    document = relationship("PaperDocument", back_populates="chat_sessions")
+    messages = relationship("PaperChatMessage", back_populates="session", cascade="all, delete-orphan")
+
+class PaperChatMessage(Base):
+    __tablename__ = "paper_chat_messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("paper_chat_sessions.id", ondelete="CASCADE"), nullable=False)
+    role = Column(Enum(RoleEnum), nullable=False)
+    content = Column(Text)
+    reasoning = Column(JSON)
+    citations = Column(JSON)  # References to document chunks
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    
+    session = relationship("PaperChatSession", back_populates="messages")
+
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import Tooltip from '../common/Tooltip';
 import Settings from '../common/Settings';
@@ -19,6 +20,7 @@ function Sidebar({
   onOpenDialogSearch
 }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [expandedConversations, setExpandedConversations] = useState(new Set());
   const [isPinnedExpanded, setIsPinnedExpanded] = useState(true);
 

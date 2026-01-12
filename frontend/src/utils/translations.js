@@ -2,6 +2,7 @@ export const translations = {
   en: {
     // Header
     'app.title': 'Lumen',
+    'app.brandSubtitle': 'Research assistant',
     'app.subtitle': 'Research assistant with structured reasoning',
     
     // Sidebar
@@ -192,10 +193,57 @@ export const translations = {
     'deleteConfirmation.dialogMessage': 'Are you sure you want to delete the dialog "{name}"?',
     'deleteConfirmation.warning': 'This action cannot be undone. All messages and data will be permanently deleted.',
     'deleteConfirmation.delete': 'Delete',
+    
+    // Document Library
+    'documentLibrary.title': 'Document Library',
+    'documentLibrary.subtitle': 'Manage your uploaded documents for paper chat',
+    'documentLibrary.uploadNew': 'Upload New Document',
+    'documentLibrary.noDocuments': 'No documents yet',
+    'documentLibrary.noDocumentsDescription': 'Upload your first document to start chatting with papers',
+    'documentLibrary.uploadDocument': 'Upload Document',
+    'documentLibrary.chatWithPaper': 'Chat with Paper',
+    'documentLibrary.viewProgress': 'View Progress',
+    'documentLibrary.retry': 'Retry',
+    'documentLibrary.pending': 'Pending',
+    'documentLibrary.processing': 'Processing...',
+    'documentLibrary.ready': 'Ready',
+    'documentLibrary.failed': 'Failed',
+    'documentLibrary.deleteDocument': 'Delete document',
+    'documentLibrary.pages': 'pages',
+    
+    // Paper Chat Interface
+    'paperChat.newSession': 'New Session',
+    'paperChat.welcome.title': 'Start chatting with your document!',
+    'paperChat.welcome.description': 'Ask questions about the content, request summaries, or explore specific topics.',
+    'paperChat.suggestions.contribution': 'What is the main contribution?',
+    'paperChat.suggestions.summary': 'Summarize key findings',
+    'paperChat.suggestions.methodology': 'What methodology was used?',
+    'paperChat.inputPlaceholder': 'Ask a question about the document...',
+    'paperChat.page': 'Page',
+    'paperChat.loading': 'Loading...',
+    'paperChat.error.title': 'Error',
+    'paperChat.error.backToLibrary': 'Back to Library',
+    
+    // Home Page
+    'home.badge': 'AI-Powered Research Assistant',
+    'home.greetingMorning': 'Good morning',
+    'home.greetingAfternoon': 'Good afternoon',
+    'home.greetingEvening': 'Good evening',
+    'home.subtitle': 'Welcome to your intelligent research workspace. Choose a tool below to start exploring, analyzing, and understanding academic content with AI assistance.',
+    'home.feature.chat.title': 'Research Chat',
+    'home.feature.chat.description': 'Start conversations and ask questions about research topics with AI assistance',
+    'home.feature.paperChat.title': 'Chat with Papers',
+    'home.feature.paperChat.description': 'Upload and analyze academic papers with AI-powered insights and Q&A',
+    'home.feature.citation.title': 'Citation Generator',
+    'home.feature.citation.description': 'Generate properly formatted citations for your research papers',
+    'home.feature.paraphraser.title': 'Paraphraser',
+    'home.feature.paraphraser.description': 'Rephrase and improve your academic writing with AI assistance',
+    'home.comingSoon': 'Coming Soon',
   },
   vi: {
     // Header
     'app.title': 'Lumen',
+    'app.brandSubtitle': 'Trợ lý nghiên cứu',
     'app.subtitle': 'Trợ lý Nghiên cứu Hội thoại với Suy luận Có cấu trúc',
     
     // Sidebar
@@ -386,6 +434,52 @@ export const translations = {
     'deleteConfirmation.dialogMessage': 'Bạn có chắc muốn xóa hội thoại "{name}"?',
     'deleteConfirmation.warning': 'Hành động này không thể hoàn tác. Tất cả tin nhắn và dữ liệu sẽ bị xóa vĩnh viễn.',
     'deleteConfirmation.delete': 'Xóa',
+    
+    // Document Library
+    'documentLibrary.title': 'Thư viện Tài liệu',
+    'documentLibrary.subtitle': 'Quản lý các tài liệu đã tải lên cho paper chat',
+    'documentLibrary.uploadNew': 'Tải lên Tài liệu Mới',
+    'documentLibrary.noDocuments': 'Chưa có tài liệu nào',
+    'documentLibrary.noDocumentsDescription': 'Tải lên tài liệu đầu tiên để bắt đầu chat với papers',
+    'documentLibrary.uploadDocument': 'Tải lên Tài liệu',
+    'documentLibrary.chatWithPaper': 'Chat với Paper',
+    'documentLibrary.viewProgress': 'Xem Tiến trình',
+    'documentLibrary.retry': 'Thử lại',
+    'documentLibrary.pending': 'Đang chờ',
+    'documentLibrary.processing': 'Đang xử lý...',
+    'documentLibrary.ready': 'Sẵn sàng',
+    'documentLibrary.failed': 'Thất bại',
+    'documentLibrary.deleteDocument': 'Xóa tài liệu',
+    'documentLibrary.pages': 'trang',
+    
+    // Paper Chat Interface
+    'paperChat.newSession': 'Phiên Mới',
+    'paperChat.welcome.title': 'Bắt đầu chat với tài liệu của bạn!',
+    'paperChat.welcome.description': 'Đặt câu hỏi về nội dung, yêu cầu tóm tắt, hoặc khám phá các chủ đề cụ thể.',
+    'paperChat.suggestions.contribution': 'Đóng góp chính là gì?',
+    'paperChat.suggestions.summary': 'Tóm tắt các phát hiện chính',
+    'paperChat.suggestions.methodology': 'Phương pháp nào được sử dụng?',
+    'paperChat.inputPlaceholder': 'Đặt câu hỏi về tài liệu...',
+    'paperChat.page': 'Trang',
+    'paperChat.loading': 'Đang tải...',
+    'paperChat.error.title': 'Lỗi',
+    'paperChat.error.backToLibrary': 'Quay lại Thư viện',
+    
+    // Home Page
+    'home.badge': 'Trợ lý Nghiên cứu AI',
+    'home.greetingMorning': 'Chào buổi sáng',
+    'home.greetingAfternoon': 'Chào buổi chiều',
+    'home.greetingEvening': 'Chào buổi tối',
+    'home.subtitle': 'Chào mừng đến không gian làm việc nghiên cứu thông minh của bạn. Chọn một công cụ bên dưới để bắt đầu khám phá, phân tích và hiểu nội dung học thuật với sự hỗ trợ của AI.',
+    'home.feature.chat.title': 'Research Chat',
+    'home.feature.chat.description': 'Bắt đầu cuộc trò chuyện và đặt câu hỏi về các chủ đề nghiên cứu với sự hỗ trợ của AI',
+    'home.feature.paperChat.title': 'Chat với Papers',
+    'home.feature.paperChat.description': 'Tải lên và phân tích các bài báo học thuật với insights và Q&A được hỗ trợ bởi AI',
+    'home.feature.citation.title': 'Trình tạo Trích dẫn',
+    'home.feature.citation.description': 'Tạo các trích dẫn được định dạng đúng cho các bài báo nghiên cứu của bạn',
+    'home.feature.paraphraser.title': 'Trình Diễn đạt lại',
+    'home.feature.paraphraser.description': 'Diễn đạt lại và cải thiện bài viết học thuật của bạn với sự hỗ trợ của AI',
+    'home.comingSoon': 'Sắp ra mắt',
   }
 };
 

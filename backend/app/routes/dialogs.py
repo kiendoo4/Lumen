@@ -267,7 +267,7 @@ async def delete_source(
     if source.file_path:
         file_path = source.file_path.replace("/api/files/", "")
         try:
-            minio_client.remove_object(BUCKET_NAME, file_path)
+            minio_client.delete_file(file_path)
         except Exception as e:
             print(f"Error deleting file from MinIO: {e}")
     

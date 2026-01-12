@@ -519,27 +519,21 @@ function ProfilePage({ onBack }) {
     setError('');
     setSuccess('');
 
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('timezone', timezone);
-
     try {
       setLoading(true);
-      const response = await axios.put('/api/auth/profile', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setSuccess(t('profile.profileUpdated'));
-      setTimeout(() => setSuccess(''), 3000);
-      // Update user context if needed
-      if (response.data) {
-        // Refresh user data from API to get updated timezone
-        const userResponse = await axios.get('/api/auth/me');
-        if (userResponse.data?.user) {
-          // Update local state to reflect changes
-          setTimezone(userResponse.data.user.timezone || timezone);
-        }
+      
+      // Use updateProfile from AuthContext which will update user state
+      // The useEffect will automatically sync timezone when user state updates
+      const result = await updateProfile({ username, timezone });
+      
+      if (result.success) {
+        setSuccess(t('profile.profileUpdated'));
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(result.error || t('profile.updateError'));
       }
     } catch (error) {
+      console.error('Profile update error:', error);
       setError(error.response?.data?.detail || t('profile.updateError'));
     } finally {
       setLoading(false);

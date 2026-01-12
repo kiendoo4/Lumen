@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MessageList from './MessageList';
 import InputArea from './InputArea';
 import Header from './Header';
@@ -16,6 +17,7 @@ import './ChatInterface.css';
 function ChatInterface({ onProfileClick }) {
   const { t } = useLanguage();
   const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedDialogId, setSelectedDialogId] = useState(null);

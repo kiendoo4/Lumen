@@ -4,7 +4,12 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ChatInterface from './components/chat/ChatInterface';
+import HomePage from './components/HomePage';
 import ProfilePage from './components/profile/ProfilePage';
+import DocumentUpload from './components/paper-chat/DocumentUpload';
+import DocumentProcessing from './components/paper-chat/DocumentProcessing';
+import PaperChatInterface from './components/paper-chat/PaperChatInterface';
+import DocumentLibrary from './components/paper-chat/DocumentLibrary';
 import './App.css';
 
 function AuthScreen() {
@@ -290,10 +295,11 @@ function ProtectedRoute({ children }) {
   // Nếu có token nhưng chưa có user (đang đợi /api/auth/me), vẫn đợi
   // CHỈ redirect khi CHẮC CHẮN không có user (không có token VÀ không có user)
   if (!user && !hasToken) {
-    // Lưu route hiện tại để redirect lại sau khi login (chỉ cho /chat)
+    // Lưu route hiện tại để redirect lại sau khi login
     // Không lưu /settings để tránh user bị redirect về settings sau khi login
     const currentPath = location.pathname;
-    if (currentPath === '/chat') {
+    const validRedirectRoutes = ['/home', '/chat', '/paper-chat'];
+    if (validRedirectRoutes.some(route => currentPath.startsWith(route))) {
       return <Navigate to={`/login?redirect=${encodeURIComponent(currentPath)}`} replace />;
     }
     // Cho tất cả các route khác (bao gồm /settings), chỉ redirect về login
@@ -334,13 +340,14 @@ function PublicRoute({ children }) {
     const redirectTo = urlParams.get('redirect');
     
     // Validate redirect URL để tránh open redirect vulnerability
-    // Chỉ cho phép redirect về /chat, không cho /settings
-    if (redirectTo && redirectTo.startsWith('/chat')) {
+    // Chỉ cho phép redirect về các route hợp lệ
+    const validRoutes = ['/home', '/chat', '/paper-chat'];
+    if (redirectTo && validRoutes.some(route => redirectTo.startsWith(route))) {
       return <Navigate to={redirectTo} replace />;
     }
     
-    // Default redirect to /chat
-    return <Navigate to="/chat" replace />;
+    // Default redirect to /home
+    return <Navigate to="/home" replace />;
   }
 
   // Còn lại thì render bình thường
@@ -361,15 +368,16 @@ function ProfilePageRoute() {
   const location = useLocation();
   
   const handleBack = () => {
-    // Check if there's a specific return path, otherwise go to chat
+    // Check if there's a specific return path, otherwise go to home
     const urlParams = new URLSearchParams(location.search);
-    const returnTo = urlParams.get('from') || '/chat';
+    const returnTo = urlParams.get('from') || '/home';
     
     // Validate return path
-    if (returnTo === '/chat') {
-      navigate('/chat');
+    const validRoutes = ['/home', '/chat', '/paper-chat'];
+    if (validRoutes.some(route => returnTo.startsWith(route))) {
+      navigate(returnTo);
     } else {
-      navigate('/chat'); // Default fallback
+      navigate('/home'); // Default fallback
     }
   };
   
@@ -388,9 +396,9 @@ function NotFoundRoute() {
     );
   }
   
-  // Redirect authenticated users to /chat, unauthenticated to /login
+  // Redirect authenticated users to /home, unauthenticated to /login
   if (user) {
-    return <Navigate to="/chat" replace />;
+    return <Navigate to="/home" replace />;
   }
   
   return <Navigate to="/login" replace />;
@@ -410,12 +418,37 @@ function AppContent() {
         </ProtectedRoute>
       } />
       <Route path="/setting" element={<Navigate to="/settings" replace />} />
+      <Route path="/home" element={
+        <ProtectedRoute>
+          <HomePage />
+        </ProtectedRoute>
+      } />
       <Route path="/chat" element={
         <ProtectedRoute>
           <ChatPage />
         </ProtectedRoute>
       } />
-      <Route path="/" element={<Navigate to="/chat" replace />} />
+      <Route path="/paper-chat" element={
+        <ProtectedRoute>
+          <DocumentLibrary />
+        </ProtectedRoute>
+      } />
+      <Route path="/paper-chat/upload" element={
+        <ProtectedRoute>
+          <DocumentUpload />
+        </ProtectedRoute>
+      } />
+      <Route path="/paper-chat/processing/:documentId" element={
+        <ProtectedRoute>
+          <DocumentProcessing />
+        </ProtectedRoute>
+      } />
+      <Route path="/paper-chat/document/:documentId" element={
+        <ProtectedRoute>
+          <PaperChatInterface />
+        </ProtectedRoute>
+      } />
+      <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="*" element={<NotFoundRoute />} />
     </Routes>
   );

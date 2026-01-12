@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import Tooltip from '../common/Tooltip';
@@ -89,33 +90,52 @@ function DialogTitleButton({ title, onPin, isPinned, onRename, onDelete }) {
   );
 }
 
-function Header({ onProfileClick, dialogTitle, onPinDialog, isDialogPinned, onRenameDialog, onDeleteDialog }) {
+function Header({ onProfileClick, dialogTitle, onPinDialog, isDialogPinned, onRenameDialog, onDeleteDialog, showBackButton = true, backRoute = '/home', backTooltip = 'Back to Home', showDialogMenu = true, children }) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
     <header className="header">
       <div className="header-content">
         <div className="header-left">
+          {showBackButton && (
+            <Tooltip text={backTooltip} position="bottom">
+              <button 
+                className="header-back-button"
+                onClick={() => navigate(backRoute)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9,22 9,12 15,12 15,22"></polyline>
+                </svg>
+              </button>
+            </Tooltip>
+          )}
           <div className="header-logo-wrapper">
             <img src="/intro-image copy.png" alt="Lumen" className="header-logo" />
           </div>
-          <h1 className="header-brand-title">{t('app.title')}</h1>
+          <div className="header-text-wrapper">
+            <h1 className="header-brand-title">{t('app.title')}</h1>
+          </div>
         </div>
-        <div className="header-center">
-          {dialogTitle ? (
-            <DialogTitleButton 
-              title={dialogTitle} 
-              onPin={onPinDialog}
-              isPinned={isDialogPinned || false}
-              onRename={onRenameDialog}
-              onDelete={onDeleteDialog}
-            />
-          ) : (
-            <h1 className="header-title">{t('app.title')}</h1>
-          )}
-        </div>
+        {dialogTitle && (
+          <div className="header-center">
+            {showDialogMenu ? (
+              <DialogTitleButton 
+                title={dialogTitle} 
+                onPin={onPinDialog}
+                isPinned={isDialogPinned || false}
+                onRename={onRenameDialog}
+                onDelete={onDeleteDialog}
+              />
+            ) : (
+              <h1 className="header-title">{dialogTitle}</h1>
+            )}
+          </div>
+        )}
         <div className="header-right">
+          {children}
           {user && (
             <Tooltip text={t('header.profile') || user.username} position="bottom">
               <button

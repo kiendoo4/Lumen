@@ -27,6 +27,17 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
     
+    # Qdrant Vector Database
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+    qdrant_grpc_port: int = 6334
+    qdrant_api_key: Optional[str] = None
+    
+    # Embedding Model
+    embedding_model: str = "intfloat/multilingual-e5-large-instruct"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

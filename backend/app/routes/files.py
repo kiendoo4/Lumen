@@ -9,7 +9,7 @@ router = APIRouter()
 @router.get("/{file_path:path}")
 async def get_file(file_path: str):
     try:
-        response = minio_client.get_object(BUCKET_NAME, file_path)
+        response = minio_client.client.get_object(minio_client.bucket_name, file_path)
         data = response.read()
         response.close()
         response.release_conn()

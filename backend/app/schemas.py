@@ -158,9 +158,71 @@ class MessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# Paper Chat Schemas
+class PaperChatSessionCreate(BaseModel):
+    title: str
+    llm_model: Optional[str] = "gpt-4"
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 0.9
+    max_tokens: Optional[int] = 2000
+
+class PaperChatMessageCreate(BaseModel):
+    content: str
+
+class PaperDocumentResponse(BaseModel):
+    id: int
+    file_name: str
+    title: Optional[str] = None
+    authors: Optional[str] = None
+    abstract: Optional[str] = None
+    total_pages: Optional[int] = None
+    processing_status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class DocumentChunkResponse(BaseModel):
+    id: int
+    chunk_index: int
+    content: str
+    page_number: Optional[int] = None
+    start_char: Optional[int] = None
+    end_char: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+class PaperChatSessionResponse(BaseModel):
+    id: int
+    title: str
+    document_id: int
+    llm_model: str
+    temperature: float
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class PaperChatMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: Optional[str] = None
+    reasoning: Optional[List[Dict[str, Any]]] = None
+    citations: Optional[List[Dict[str, Any]]] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 # Rebuild models to resolve forward references
 ConversationResponse.model_rebuild()
 DialogResponse.model_rebuild()
 DialogSourceResponse.model_rebuild()
 MessageResponse.model_rebuild()
+PaperDocumentResponse.model_rebuild()
+DocumentChunkResponse.model_rebuild()
+PaperChatSessionResponse.model_rebuild()
+PaperChatMessageResponse.model_rebuild()
 
