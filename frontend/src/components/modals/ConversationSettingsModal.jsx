@@ -3,9 +3,20 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import axios from 'axios';
 import './CreateConversationModal.css';
 
-function ConversationSettingsModal({ isOpen, onClose, conversationId, conversation, onUpdate }) {
+function ConversationSettingsModal({ 
+  isOpen, 
+  onClose, 
+  conversationId, 
+  conversation, 
+  onUpdate,
+  // Paper chat props
+  mode = 'conversation', // 'conversation' or 'paper-chat'
+  sessionId = null,
+  session = null
+}) {
   const { t } = useLanguage();
-  const [title, setTitle] = useState(conversation?.title || '');
+  const isPaperChat = mode === 'paper-chat';
+  const [title, setTitle] = useState(conversation?.title || session?.title || '');
   const [description, setDescription] = useState('');
   const [avatar, setAvatar] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(conversation?.avatar_url || null);
@@ -31,19 +42,45 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('dialog');
+  const [activeTab, setActiveTab] = useState(() => isPaperChat ? 'model' : 'dialog');
   const [firstDialog, setFirstDialog] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Ensure activeTab is always 'model' for paper-chat mode
   useEffect(() => {
-    if (isOpen && conversation) {
-      setTitle(conversation.title || '');
-      setAvatarPreview(conversation.avatar_url || null);
+    if (isPaperChat && activeTab !== 'model') {
+      setActiveTab('model');
+    }
+  }, [isPaperChat, activeTab]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isPaperChat && session) {
+        // Load paper chat session settings
+        setTitle(session.title || '');
+        setSelectedModel(session.llm_model || 'gpt-4');
+        setTemperature(parseFloat(session.temperature) || 0.7);
+        setTopP(parseFloat(session.top_p) || 0.9);
+        setMaxTokens(session.max_tokens || 2000);
+        
+        // Determine provider from model
+        const model = session.llm_model || 'gpt-4';
+        if (model.includes('gemini') || model.startsWith('google')) {
+          setSelectedProvider('gemini');
+        } else if (model.startsWith('ollama') || model.startsWith('llama') || model.startsWith('mistral') || model.startsWith('codellama') || model.startsWith('phi')) {
+          setSelectedProvider('ollama');
+        } else {
+          setSelectedProvider('openai');
+        }
+      } else if (conversation) {
+        setTitle(conversation.title || '');
+        setAvatarPreview(conversation.avatar_url || null);
+        fetchFirstDialog();
+      }
       fetchModelCards();
       fetchEnabledProviders();
-      fetchFirstDialog();
     }
-  }, [isOpen, conversation, conversationId]);
+  }, [isOpen, conversation, conversationId, session, sessionId, isPaperChat]);
 
   const fetchModelCards = async () => {
     try {
@@ -138,37 +175,58 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
     setLoading(true);
 
     try {
-      // Update conversation (config belongs to conversation, not individual dialogs)
-      const formData = new FormData();
-      formData.append('title', title);
-      if (avatar) {
-        formData.append('avatar', avatar);
-      }
-      // Add config to conversation
-      formData.append('llm_model', selectedModel);
-      formData.append('freedom', freedom.toString());
-      formData.append('temperature', temperature.toString());
-      formData.append('top_p', topP.toString());
-      formData.append('presence_penalty', presencePenalty.toString());
-      formData.append('frequency_penalty', frequencyPenalty.toString());
-      formData.append('max_tokens', maxTokens.toString());
+      if (isPaperChat && sessionId) {
+        // Update paper chat session
+        await axios.put(`/api/paper-chat/sessions/${sessionId}`, {
+          llm_model: selectedModel,
+          temperature: temperature,
+          top_p: topP,
+          max_tokens: maxTokens
+        }, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (onUpdate) {
+          onUpdate({
+            llm_model: selectedModel,
+            temperature: temperature,
+            top_p: topP,
+            max_tokens: maxTokens
+          });
+        }
+      } else {
+        // Update conversation (config belongs to conversation, not individual dialogs)
+        const formData = new FormData();
+        formData.append('title', title);
+        if (avatar) {
+          formData.append('avatar', avatar);
+        }
+        // Add config to conversation
+        formData.append('llm_model', selectedModel);
+        formData.append('freedom', freedom.toString());
+        formData.append('temperature', temperature.toString());
+        formData.append('top_p', topP.toString());
+        formData.append('presence_penalty', presencePenalty.toString());
+        formData.append('frequency_penalty', frequencyPenalty.toString());
+        formData.append('max_tokens', maxTokens.toString());
 
-      await axios.put(`/api/conversations/${conversationId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      if (onUpdate) {
-        // Reload conversation data
-        const convResponse = await axios.get(`/api/conversations/`);
-        const updatedConv = convResponse.data.find(c => c.id === conversationId);
-        if (updatedConv) {
-          onUpdate(updatedConv);
+        await axios.put(`/api/conversations/${conversationId}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        if (onUpdate) {
+          // Reload conversation data
+          const convResponse = await axios.get(`/api/conversations/`);
+          const updatedConv = convResponse.data.find(c => c.id === conversationId);
+          if (updatedConv) {
+            onUpdate(updatedConv);
+          }
         }
       }
       
       onClose();
     } catch (error) {
-      console.error('Error updating conversation:', error);
+      console.error('Error updating settings:', error);
       setError(error.response?.data?.detail || 'Update failed');
     } finally {
       setLoading(false);
@@ -184,7 +242,7 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
     setDescription('');
     setEmptyResponse('');
     setOpeningGreeting('');
-    setActiveTab('dialog');
+    setActiveTab(isPaperChat ? 'model' : 'dialog');
     if (firstDialog) {
       setSelectedModel(firstDialog.llm_model || 'gpt-4');
       setFreedom(parseFloat(firstDialog.freedom) || 0.5);
@@ -256,31 +314,33 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="create-conversation-tabs">
-          <button
-            type="button"
-            className={`create-conversation-tab ${activeTab === 'dialog' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dialog')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span>{t('createConversation.dialogConfig')}</span>
-          </button>
-          <button
-            type="button"
-            className={`create-conversation-tab ${activeTab === 'model' ? 'active' : ''}`}
-            onClick={() => setActiveTab('model')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-            <span>{t('createConversation.modelConfig')}</span>
-          </button>
-        </div>
+        {/* Tabs - Only show for conversation mode */}
+        {!isPaperChat && (
+          <div className="create-conversation-tabs">
+            <button
+              type="button"
+              className={`create-conversation-tab ${activeTab === 'dialog' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dialog')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span>{t('createConversation.dialogConfig')}</span>
+            </button>
+            <button
+              type="button"
+              className={`create-conversation-tab ${activeTab === 'model' ? 'active' : ''}`}
+              onClick={() => setActiveTab('model')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <span>{t('createConversation.modelConfig')}</span>
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSave} className="create-conversation-form">
           {error && (
@@ -295,8 +355,8 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
           )}
 
           <div className="create-conversation-modal-body">
-            {/* Dialog Config Tab */}
-            {activeTab === 'dialog' && (
+            {/* Dialog Config Tab - Only show for conversation mode */}
+            {!isPaperChat && activeTab === 'dialog' && (
               <div className="create-conversation-tab-content">
                 <div className="create-conversation-section">
                   <h3 className="create-conversation-section-title">
@@ -409,8 +469,8 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
               </div>
             )}
 
-            {/* Model Config Tab */}
-            {activeTab === 'model' && (
+            {/* Model Config Tab - Show for both modes, but always for paper-chat */}
+            {(isPaperChat || activeTab === 'model') && (
               <div className="create-conversation-tab-content">
                 <div className="create-conversation-section">
                   <h3 className="create-conversation-section-title">
@@ -748,7 +808,7 @@ function ConversationSettingsModal({ isOpen, onClose, conversationId, conversati
             <button
               type="submit"
               className="create-conversation-button submit"
-              disabled={loading || !title.trim()}
+              disabled={loading || (!isPaperChat && !title.trim())}
             >
               {loading ? (
                 <>

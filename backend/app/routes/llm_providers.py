@@ -23,6 +23,40 @@ async def get_providers(
         base_url=p.base_url
     ) for p in providers]
 
+@router.get("/default-settings")
+async def get_default_llm_settings(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's default LLM settings for paper chat"""
+    from app.models import UserPreferences
+    
+    user_id = current_user["userId"]
+    
+    # Get user preferences
+    preferences = db.query(UserPreferences).filter(
+        UserPreferences.user_id == user_id
+    ).first()
+    
+    if preferences:
+        return {
+            "llm_model": preferences.default_llm_model,
+            "temperature": float(preferences.default_temperature),
+            "top_p": float(preferences.default_top_p),
+            "max_tokens": preferences.default_max_tokens
+        }
+    
+    # If no preferences, use smart defaults based on configured providers
+    from app.routes.chat import _choose_default_model
+    default_model = _choose_default_model(db, user_id)
+    
+    return {
+        "llm_model": default_model,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 2000
+    }
+
 @router.put("/{provider}")
 async def update_provider(
     provider: str,

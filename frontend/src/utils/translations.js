@@ -223,6 +223,14 @@ export const translations = {
     'paperChat.loading': 'Loading...',
     'paperChat.error.title': 'Error',
     'paperChat.error.backToLibrary': 'Back to Library',
+    'paperChat.modelSettings.title': 'Model Settings',
+    'paperChat.modelSettings.tooltip': 'Configure LLM model and settings',
+    'paperChat.citations.title': 'Retrieved Sources',
+    'paperChat.citations.query': 'Query',
+    'paperChat.citations.sources': 'Top Retrieved Chunks',
+    'paperChat.citations.similarity': 'Similarity',
+    'paperChat.citations.page': 'Page',
+    'paperChat.citations.showSources': 'Sources',
     
     // Home Page
     'home.badge': 'AI-Powered Research Assistant',
@@ -464,6 +472,14 @@ export const translations = {
     'paperChat.loading': 'Đang tải...',
     'paperChat.error.title': 'Lỗi',
     'paperChat.error.backToLibrary': 'Quay lại Thư viện',
+    'paperChat.modelSettings.title': 'Cài đặt Mô hình',
+    'paperChat.modelSettings.tooltip': 'Cấu hình mô hình LLM và các thiết lập',
+    'paperChat.citations.title': 'Nguồn Trích dẫn',
+    'paperChat.citations.query': 'Truy vấn',
+    'paperChat.citations.sources': 'Top Chunks Trích xuất',
+    'paperChat.citations.similarity': 'Độ tương tự',
+    'paperChat.citations.page': 'Trang',
+    'paperChat.citations.showSources': 'Nguồn',
     
     // Home Page
     'home.badge': 'Trợ lý Nghiên cứu AI',

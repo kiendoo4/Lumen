@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.database import get_db
 from app.models import PaperDocument, DocumentChunk, PaperChatSession, PaperChatMessage
 from app.middleware.auth import get_current_user
 from app.utils.minio_client import minio_client
 from app.utils.document_processor import document_processor
 from app.utils.qdrant_client import qdrant_manager
-from app.schemas import PaperChatSessionCreate, PaperChatMessageCreate
+from app.utils.litellm_client import get_llm_config
+from app.schemas import PaperChatSessionCreate, PaperChatSessionUpdate, PaperChatMessageCreate
 from app.agent.paper_chat_agent import call_paper_chat_agent
 from pydantic import BaseModel
 from typing import List, Optional
@@ -313,6 +315,82 @@ async def get_user_chat_sessions(
         for session in sessions
     ]
 
+@router.get("/sessions/{session_id}")
+async def get_session(
+    session_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a chat session by ID"""
+    
+    # Verify session belongs to user
+    session = db.query(PaperChatSession).filter(
+        PaperChatSession.id == session_id,
+        PaperChatSession.user_id == current_user["userId"]
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    return {
+        "id": session.id,
+        "title": session.title,
+        "document_id": session.document_id,
+        "document_title": session.document.title or session.document.file_name,
+        "llm_model": session.llm_model,
+        "temperature": float(session.temperature),
+        "top_p": float(session.top_p),
+        "max_tokens": session.max_tokens,
+        "created_at": session.created_at.isoformat(),
+        "updated_at": session.updated_at.isoformat()
+    }
+
+@router.put("/sessions/{session_id}")
+async def update_session(
+    session_id: int,
+    session_data: PaperChatSessionUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a chat session"""
+    
+    # Verify session belongs to user
+    session = db.query(PaperChatSession).filter(
+        PaperChatSession.id == session_id,
+        PaperChatSession.user_id == current_user["userId"]
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    # Update session settings (only update fields that are provided)
+    if session_data.title is not None:
+        session.title = session_data.title
+    if session_data.llm_model is not None:
+        session.llm_model = session_data.llm_model
+    if session_data.temperature is not None:
+        session.temperature = session_data.temperature
+    if session_data.top_p is not None:
+        session.top_p = session_data.top_p
+    if session_data.max_tokens is not None:
+        session.max_tokens = session_data.max_tokens
+    
+    db.commit()
+    db.refresh(session)
+    
+    return {
+        "id": session.id,
+        "title": session.title,
+        "document_id": session.document_id,
+        "document_title": session.document.title or session.document.file_name,
+        "llm_model": session.llm_model,
+        "temperature": float(session.temperature),
+        "top_p": float(session.top_p),
+        "max_tokens": session.max_tokens,
+        "created_at": session.created_at.isoformat(),
+        "updated_at": session.updated_at.isoformat()
+    }
+
 @router.get("/sessions/{session_id}/messages")
 async def get_session_messages(
     session_id: int,
@@ -396,11 +474,44 @@ async def chat_with_paper(
             "content": chat_request.message
         })
         
+        # Determine provider and get API key
+        model = chat_request.llm_model or session.llm_model
+        model_lower = model.lower()
+        user_id = current_user["userId"]
+        
+        if "gemini" in model_lower or model.startswith("google"):
+            provider = "gemini"
+            llm_factory = "gemini"
+            llm_name = model.replace("gemini/", "") if model.startswith("gemini/") else model
+        elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
+            provider = "ollama"
+            llm_factory = "ollama"
+            llm_name = model
+        else:
+            provider = "openai"
+            llm_factory = "openai"
+            llm_name = model
+        
+        # Get API key from database
+        config = await get_llm_config(user_id, provider)
+        if not config:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{provider.capitalize()} API key not found. Please configure {provider} provider in settings."
+            )
+        
+        api_key = config.get("api_key")
+        if not api_key and provider != "ollama":
+            raise HTTPException(
+                status_code=400,
+                detail=f"{provider.capitalize()} API key not found. Please configure {provider} provider in settings."
+            )
+        
         # Get LLM configuration
         llm_config = {
-            "llm_factory": "openai",  # Default to OpenAI, should be configurable
-            "llm_name": chat_request.llm_model or session.llm_model,
-            "api_key": None  # Will use default from settings
+            "llm_factory": llm_factory,
+            "llm_name": llm_name,
+            "api_key": api_key
         }
         
         # Call paper chat agent with RAG
@@ -423,7 +534,7 @@ current_user.get("timezone", "UTC")
         db.add(agent_message)
         
         # Update session timestamp
-        session.updated_at = db.execute("SELECT NOW()").scalar()
+        session.updated_at = db.execute(text("SELECT NOW()")).scalar()
         db.commit()
         
         return {

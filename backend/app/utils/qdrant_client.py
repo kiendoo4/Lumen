@@ -17,14 +17,30 @@ class QdrantManager:
         )
         self.embedding_model = SentenceTransformer(settings.embedding_model)
         
-    def create_collection(self, collection_name: str, vector_size: int = 384) -> bool:
-        """Create a new collection in Qdrant"""
+    def create_collection(self, collection_name: str, vector_size: int = None) -> bool:
+        """Create a new collection in Qdrant
+        
+        Args:
+            collection_name: Name of the collection
+            vector_size: Size of vectors. If None, will be determined from the embedding model.
+        """
         try:
+            # If vector_size not provided, get it from the embedding model
+            if vector_size is None:
+                # Get embedding dimension from the model
+                # intfloat/multilingual-e5-large-instruct produces 1024-dimensional vectors
+                sample_embedding = self.embed_text("sample")
+                if sample_embedding:
+                    vector_size = len(sample_embedding)
+                else:
+                    # Fallback to 1024 for intfloat/multilingual-e5-large-instruct
+                    vector_size = 1024
+            
             self.client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
             )
-            logger.info(f"Created collection: {collection_name}")
+            logger.info(f"Created collection: {collection_name} with vector size: {vector_size}")
             return True
         except Exception as e:
             logger.error(f"Error creating collection {collection_name}: {e}")
@@ -154,10 +170,10 @@ class QdrantManager:
                     ]
                 )
             
-            # Search in Qdrant
-            search_results = self.client.search(
+            # Search in Qdrant using query_points (correct API according to Qdrant docs)
+            search_results = self.client.query_points(
                 collection_name=collection_name,
-                query_vector=query_embedding,
+                query=query_embedding,
                 query_filter=query_filter,
                 limit=limit,
                 with_payload=True
@@ -165,16 +181,16 @@ class QdrantManager:
             
             # Format results
             results = []
-            for result in search_results:
+            for result in search_results.points:
                 results.append({
                     'id': result.id,
                     'score': result.score,
-                    'content': result.payload.get('content', ''),
-                    'document_id': result.payload.get('document_id'),
-                    'chunk_index': result.payload.get('chunk_index'),
-                    'page_number': result.payload.get('page_number'),
-                    'start_char': result.payload.get('start_char'),
-                    'end_char': result.payload.get('end_char'),
+                    'content': result.payload.get('content', '') if result.payload else '',
+                    'document_id': result.payload.get('document_id') if result.payload else None,
+                    'chunk_index': result.payload.get('chunk_index') if result.payload else None,
+                    'page_number': result.payload.get('page_number') if result.payload else None,
+                    'start_char': result.payload.get('start_char') if result.payload else None,
+                    'end_char': result.payload.get('end_char') if result.payload else None,
                 })
             
             logger.info(f"Found {len(results)} similar documents for query")

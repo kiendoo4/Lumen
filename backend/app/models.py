@@ -33,6 +33,7 @@ class User(Base):
     
     llm_providers = relationship("LLMProvider", back_populates="user", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    preferences = relationship("UserPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 class LLMProvider(Base):
     __tablename__ = "llm_providers"
@@ -46,6 +47,22 @@ class LLMProvider(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     
     user = relationship("User", back_populates="llm_providers")
+    
+    __table_args__ = ({"mysql_engine": "InnoDB"},)
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    default_llm_model = Column(String(100), default="gpt-4")
+    default_temperature = Column(DECIMAL(3, 2), default=0.70)
+    default_top_p = Column(DECIMAL(3, 2), default=0.90)
+    default_max_tokens = Column(Integer, default=2000)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User", back_populates="preferences")
     
     __table_args__ = ({"mysql_engine": "InnoDB"},)
 

@@ -44,9 +44,15 @@ YOUR CAPABILITIES:
 RESPONSE FORMAT:
 - Use the search_paper_rag tool first to get relevant content
 - Base your answer ONLY on the retrieved content
-- Include citations [1], [2], etc. when referencing specific parts
+- Include citations [1], [2], etc. when referencing specific parts (IMPORTANT: Use separate citations like [1] [2] instead of [1, 2])
 - If page numbers are available, mention them
 - Be conversational but accurate
+
+CITATION FORMATTING RULES:
+- ALWAYS use individual citation numbers: [1] [2] [3]
+- NEVER use comma-separated citations: [1, 2, 3]
+- Each citation should be separate for better UI rendering
+- Example: "This concept is supported by multiple sources [1] [3] [5]" NOT "This concept is supported by multiple sources [1, 3, 5]"
 
 IMPORTANT: Never use your general knowledge about the topic. Only use information retrieved from the current document.
 """
@@ -231,6 +237,7 @@ async def run_paper_chat_agent(llm_model_config, messages, document_id: int, doc
         citations = []
         url_contents = []
         response = ""
+        citation_index_counter = 0  # Track citation index across multiple tool calls
         
         async for event in runner.run_async(
             user_id=USER_ID, 
@@ -283,6 +290,10 @@ async def run_paper_chat_agent(llm_model_config, messages, document_id: int, doc
                         if citation_match:
                             try:
                                 citation_data = json.loads(citation_match.group(1))
+                                # Re-index citations to ensure unique sequential indices
+                                for citation in citation_data:
+                                    citation_index_counter += 1
+                                    citation['index'] = citation_index_counter
                                 citations.extend(citation_data)
                                 # Remove citation metadata from display result
                                 result_str = re.sub(r'\[CITATION_METADATA\].*?\[/CITATION_METADATA\]', '', result_str, flags=re.DOTALL).strip()

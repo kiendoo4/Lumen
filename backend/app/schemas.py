@@ -166,6 +166,13 @@ class PaperChatSessionCreate(BaseModel):
     top_p: Optional[float] = 0.9
     max_tokens: Optional[int] = 2000
 
+class PaperChatSessionUpdate(BaseModel):
+    title: Optional[str] = None
+    llm_model: Optional[str] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    max_tokens: Optional[int] = None
+
 class PaperChatMessageCreate(BaseModel):
     content: str
 

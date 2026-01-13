@@ -6,14 +6,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def search_paper_rag(query: str, document_id: int, limit: int = 5) -> str:
+
+def search_paper_rag(query: str, document_id: int, limit: int = 10) -> str:
     """
     Search for relevant content in a specific paper document using RAG (Retrieval-Augmented Generation).
     
     Args:
         query: The search query or question
         document_id: ID of the paper document to search in
-        limit: Maximum number of relevant chunks to return (default: 5)
+        limit: Maximum number of relevant chunks to return (default: 10)
     
     Returns:
         JSON string containing relevant document chunks with citations
