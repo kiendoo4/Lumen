@@ -857,3 +857,202 @@
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* Task Planning Reasoning Styles */
+.message-reasoning {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.reasoning-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  width: 100%;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.reasoning-toggle:hover {
+  color: var(--text-primary);
+}
+
+.reasoning-toggle-text {
+  font-weight: 500;
+}
+
+.reasoning-toggle-count {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.reasoning-toggle-icon {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.reasoning-toggle-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.reasoning-steps {
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.reasoning-step {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.reasoning-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reasoning-step-icon {
+  font-size: 1rem;
+  min-width: 20px;
+}
+
+.reasoning-step-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.reasoning-step-content {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.reasoning-step-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.reasoning-step-result {
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reasoning-result-expand {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  margin-top: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.reasoning-result-expand:hover {
+  color: var(--primary-hover);
+}
+
+.reasoning-result-expand svg {
+  transition: transform 0.2s ease;
+}
+
+.reasoning-result-expand.expanded svg {
+  transform: rotate(180deg);
+}
+
+/* Task Planning Specific Styles */
+.reasoning-step-todo {
+  border-left-color: #10b981;
+}
+
+.reasoning-step-task-start {
+  border-left-color: #f59e0b;
+}
+
+.reasoning-step-task-completed {
+  border-left-color: #10b981;
+}
+
+.reasoning-step-task-error {
+  border-left-color: #ef4444;
+}
+
+.reasoning-step-synthesis_start {
+  border-left-color: #8b5cf6;
+}
+
+.reasoning-step-synthesis_completed {
+  border-left-color: #06b6d4;
+}
+
+.todo-list {
+  margin-top: 0.5rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.todo-priority {
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.todo-description {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.todo-type {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  text-transform: capitalize;
+}
+
+.citations-count {
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  margin-left: auto;
+}

@@ -40,6 +40,8 @@ const PaperChatInterface = () => {
   const [citationsModalOpen, setCitationsModalOpen] = useState(false);
   const [selectedMessageCitations, setSelectedMessageCitations] = useState(null);
   const [selectedMessageQuery, setSelectedMessageQuery] = useState('');
+  const [expandedReasoning, setExpandedReasoning] = useState({});
+  const [expandedResults, setExpandedResults] = useState({});
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -767,6 +769,177 @@ const PaperChatInterface = () => {
                               );
                             })()}
                           </div>
+                          
+                          {/* Reasoning Steps Display */}
+                          {message.role === 'agent' && (() => {
+                            const reasoningSteps = Array.isArray(message.reasoning) 
+                              ? message.reasoning 
+                              : (message.reasoning?.steps || []);
+                            
+                            if (!reasoningSteps || reasoningSteps.length === 0) return null;
+                            
+                            const messageId = message.id;
+                            const isReasoningExpanded = expandedReasoning[messageId] || false;
+                            
+                            // Get tool display names for task planning
+                            const getStepDisplayName = (step) => {
+                              switch(step.type) {
+                                case 'planning_start': return 'Task Planning';
+                                case 'todo_list_created': return 'To-Do List Created';
+                                case 'task_start': return 'Task Started';
+                                case 'task_completed': return 'Task Completed';
+                                case 'task_error': return 'Task Error';
+                                case 'synthesis_start': return 'Synthesis';
+                                case 'synthesis_completed': return 'Response Generated';
+                                case 'tool_call': return 'RAG Search';
+                                case 'tool_response': return 'Search Results';
+                                default: return step.type || 'Step';
+                              }
+                            };
+                            
+                            const getStepIcon = (step) => {
+                              switch(step.type) {
+                                case 'planning_start': return '→';
+                                case 'todo_list_created': return '✓';
+                                case 'task_start': return '→';
+                                case 'task_completed': return '✓';
+                                case 'task_error': return '✗';
+                                case 'synthesis_start': return '→';
+                                case 'synthesis_completed': return '✓';
+                                case 'tool_call': return '→';
+                                case 'tool_response': return '✓';
+                                default: return '•';
+                              }
+                            };
+                            
+                            return (
+                              <div className="message-reasoning">
+                                <button
+                                  className="reasoning-toggle"
+                                  onClick={() => setExpandedReasoning(prev => ({
+                                    ...prev,
+                                    [messageId]: !isReasoningExpanded
+                                  }))}
+                                  type="button"
+                                >
+                                  <span className="reasoning-toggle-text">
+                                    {t('message.reasoning') || 'Task Planning Process'}
+                                  </span>
+                                  <span className="reasoning-toggle-count">({reasoningSteps.length} steps)</span>
+                                  <svg 
+                                    className={`reasoning-toggle-icon ${isReasoningExpanded ? 'expanded' : ''}`}
+                                    width="16" 
+                                    height="16" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2"
+                                  >
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                  </svg>
+                                </button>
+                                {isReasoningExpanded && (
+                                  <div className="reasoning-steps">
+                                    {reasoningSteps.map((step, idx) => {
+                                      const stepDisplayName = getStepDisplayName(step);
+                                      const stepIcon = getStepIcon(step);
+                                      
+                                      if (step.type === 'todo_list_created') {
+                                        return (
+                                          <div key={idx} className="reasoning-step reasoning-step-todo">
+                                            <div className="reasoning-step-header">
+                                              <span className="reasoning-step-icon">{stepIcon}</span>
+                                              <span className="reasoning-step-title">{stepDisplayName}</span>
+                                            </div>
+                                            <div className="reasoning-step-content">
+                                              <div className="todo-list">
+                                                {step.todo_list && step.todo_list.map((task, taskIdx) => (
+                                                  <div key={taskIdx} className="todo-item">
+                                                    <span className="todo-priority">P{task.priority}</span>
+                                                    <span className="todo-description">{task.description}</span>
+                                                    <span className="todo-type">{task.type}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      } else if (step.type === 'task_start') {
+                                        return (
+                                          <div key={idx} className="reasoning-step reasoning-step-task-start">
+                                            <div className="reasoning-step-header">
+                                              <span className="reasoning-step-icon">{stepIcon}</span>
+                                              <span className="reasoning-step-title">{step.task_id}</span>
+                                            </div>
+                                            <div className="reasoning-step-content">
+                                              <span className="reasoning-step-label">Task:</span> {step.task_description}
+                                            </div>
+                                          </div>
+                                        );
+                                      } else if (step.type === 'task_completed') {
+                                        const resultId = `task-result-${idx}`;
+                                        const isResultExpanded = expandedResults[resultId] || false;
+                                        const result = step.result_preview || '';
+                                        const shouldTruncate = result.length > 200;
+                                        const displayResult = shouldTruncate && !isResultExpanded 
+                                          ? result.substring(0, 200) 
+                                          : result;
+                                        
+                                        return (
+                                          <div key={idx} className="reasoning-step reasoning-step-task-completed">
+                                            <div className="reasoning-step-header">
+                                              <span className="reasoning-step-icon">{stepIcon}</span>
+                                              <span className="reasoning-step-title">{step.task_id} completed</span>
+                                              <span className="citations-count">({step.citations_found} citations)</span>
+                                            </div>
+                                            {result && (
+                                              <div className="reasoning-step-content">
+                                                <span className="reasoning-step-label">Result:</span> 
+                                                <div className="reasoning-step-result">
+                                                  {displayResult}
+                                                  {shouldTruncate && !isResultExpanded && <span>...</span>}
+                                                  {shouldTruncate && (
+                                                    <button
+                                                      className={`reasoning-result-expand ${isResultExpanded ? 'expanded' : ''}`}
+                                                      onClick={() => setExpandedResults(prev => ({
+                                                        ...prev,
+                                                        [resultId]: !isResultExpanded
+                                                      }))}
+                                                      type="button"
+                                                    >
+                                                      <span>{isResultExpanded ? 'Show less' : 'Show more'}</span>
+                                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                                      </svg>
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      } else {
+                                        // Generic step display
+                                        return (
+                                          <div key={idx} className={`reasoning-step reasoning-step-${step.type}`}>
+                                            <div className="reasoning-step-header">
+                                              <span className="reasoning-step-icon">{stepIcon}</span>
+                                              <span className="reasoning-step-title">{stepDisplayName}</span>
+                                            </div>
+                                            {step.message && (
+                                              <div className="reasoning-step-content">
+                                                {step.message}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      }
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
