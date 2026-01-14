@@ -50,11 +50,6 @@ function CitationsModal({ isOpen, onClose, query, citations, onCitationClick }) 
                   >
                     <div className="citation-item-header">
                       <span className="citation-item-index">[{id}]</span>
-                      {citation.score !== undefined && (
-                        <span className="citation-item-score">
-                          {t('paperChat.citations.similarity') || 'Similarity'}: {citation.score.toFixed(3)}
-                        </span>
-                      )}
                       {citation.page_number && (
                         <span className="citation-item-page">
                           {t('paperChat.citations.page') || 'Page'} {citation.page_number}
@@ -76,7 +71,11 @@ function CitationsModal({ isOpen, onClose, query, citations, onCitationClick }) 
             className="citations-modal-button"
             onClick={onClose}
           >
-            {t('settings.close') || 'Close'}
+            {(() => {
+              // Avoid showing raw translation keys like "settings.close"
+              const label = t('paperChat.citations.close') || t('settings.close') || 'Close';
+              return (typeof label === 'string' && label.includes('.')) ? 'Close' : label;
+            })()}
           </button>
         </div>
       </div>

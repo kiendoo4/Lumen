@@ -13,6 +13,8 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
   const [searchText, setSearchText] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1.0); // Default 100%
   const [containerReady, setContainerReady] = useState(false);
+  const renderTaskIdRef = useRef(0);       // Track the latest render task to cancel old ones
+  const isRenderingRef = useRef(false);    // Flag to avoid spamming zoom while rendering
 
   // Callback ref to detect when container is mounted
   const setContainerRef = (node) => {
@@ -126,6 +128,10 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
   const renderAllPages = async (pdf = pdfDoc) => {
     if (!pdf || !containerRef.current) return;
 
+    // Increment render task id to cancel any previous in‑flight renders
+    const currentTaskId = ++renderTaskIdRef.current;
+    isRenderingRef.current = true;
+
     try {
       // Wait for container to have width
       let containerWidth = containerRef.current.clientWidth - 40;
@@ -145,11 +151,21 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
       }
       
       // Clear container
+      if (currentTaskId !== renderTaskIdRef.current || !containerRef.current) {
+        console.log('Render task cancelled before clearing container');
+        return;
+      }
       containerRef.current.innerHTML = '';
       console.log(`Starting to render ${pdf.numPages} pages with container width: ${containerWidth}`);
       
       // Render all pages
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        // If a newer render started, stop this one
+        if (currentTaskId !== renderTaskIdRef.current || !containerRef.current) {
+          console.log('Render task cancelled during page loop');
+          return;
+        }
+
         const page = await pdf.getPage(pageNum);
         
         // Calculate scale to fit container width at 100% zoom
@@ -253,18 +269,28 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
         }
       }
       
-      // Update current page based on scroll position
-      updateCurrentPageFromScroll();
-      
-      console.log(`Successfully rendered ${pdf.numPages} pages`);
-      console.log('Container children count:', containerRef.current.children.length);
-      console.log('Container innerHTML length:', containerRef.current.innerHTML.length);
+      // Only update state/logs if this is still the latest render
+      if (currentTaskId === renderTaskIdRef.current && containerRef.current) {
+        // Update current page based on scroll position
+        updateCurrentPageFromScroll();
+        
+        console.log(`Successfully rendered ${pdf.numPages} pages`);
+        console.log('Container children count:', containerRef.current.children.length);
+        console.log('Container innerHTML length:', containerRef.current.innerHTML.length);
+      } else {
+        console.log('Render task finished but was superseded by a newer task');
+      }
       
     } catch (err) {
       console.error('Error rendering pages:', err);
       // If rendering fails, still set loading to false to show error
       setIsLoading(false);
       setError(`Failed to render PDF pages: ${err.message}`);
+    } finally {
+      // Only clear rendering flag for the active task
+      if (currentTaskId === renderTaskIdRef.current) {
+        isRenderingRef.current = false;
+      }
     }
   };
 
@@ -272,29 +298,45 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
     if (!containerRef.current) return;
     
     const container = containerRef.current;
-    const scrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
-    const scrollCenter = scrollTop + containerHeight / 2;
-    
-    // Find which page is in the center of the viewport
     const pageContainers = container.querySelectorAll('.page-container');
+    if (!pageContainers.length) return;
+
     let newCurrentPage = 1;
-    
-    pageContainers.forEach((pageContainer, index) => {
-      const pageTop = pageContainer.offsetTop;
-      const pageBottom = pageTop + pageContainer.offsetHeight;
+
+    // Trường hợp scroll bên trong chính pdf-container (overflow: auto)
+    if (container.scrollHeight > container.clientHeight + 1) {
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const scrollCenter = scrollTop + containerHeight / 2;
       
-      if (scrollCenter >= pageTop && scrollCenter <= pageBottom) {
-        newCurrentPage = index + 1;
-      }
-    });
+      pageContainers.forEach((pageContainer, index) => {
+        const pageTop = pageContainer.offsetTop;
+        const pageBottom = pageTop + pageContainer.offsetHeight;
+        
+        if (scrollCenter >= pageTop && scrollCenter <= pageBottom) {
+          newCurrentPage = index + 1;
+        }
+      });
+    } else {
+      // Trường hợp không scroll trong container mà scroll toàn bộ window
+      const viewportCenterY = window.innerHeight / 2;
+      
+      pageContainers.forEach((pageContainer, index) => {
+        const rect = pageContainer.getBoundingClientRect();
+        if (viewportCenterY >= rect.top && viewportCenterY <= rect.bottom) {
+          newCurrentPage = index + 1;
+        }
+      });
+    }
     
-    if (newCurrentPage !== currentPage) {
-      setCurrentPage(newCurrentPage);
+    // Dùng functional setState để không bị dính currentPage cũ trong closure của event listener
+    setCurrentPage((prevPage) => {
+      if (prevPage === newCurrentPage) return prevPage;
       if (onPageChange) {
         onPageChange(newCurrentPage);
       }
-    }
+      return newCurrentPage;
+    });
   };
 
   const highlightChunks = () => {
@@ -306,7 +348,8 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
     
     highlightedChunks.forEach(chunk => {
       if (chunk.page_number === currentPage && chunk.content) {
-        highlightTextInPage(chunk.content.substring(0, 100));
+        // Dùng kiểu 'citation' để màu trùng với highlight khi click citation
+        highlightTextInPage(chunk.content.substring(0, 100), 'citation');
       }
     });
   };
@@ -330,7 +373,8 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
     let highlightCount = 0;
     
     textLayers.forEach(textLayer => {
-      const textSpans = textLayer.querySelectorAll('span[data-text-index]');
+      // Use all spans inside textLayer (PDF.js generated spans may not have data-text-index)
+      const textSpans = textLayer.querySelectorAll('span');
       
       textSpans.forEach(span => {
         const text = span.textContent;
@@ -420,6 +464,11 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
     const pageNum = parseInt(pageInput);
     if (pageNum >= 1 && pageNum <= totalPages) {
       goToPage(pageNum);
+      // Cập nhật luôn currentPage để input không nhảy ngược về trang cũ
+      setCurrentPage(pageNum);
+      if (onPageChange) {
+        onPageChange(pageNum);
+      }
       setPageInput('');
     }
   };
@@ -507,16 +556,29 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
   };
 
   const zoomIn = () => {
+    // Tránh đổi zoom khi đang render để không bị huỷ render giữa chừng
+    if (isRenderingRef.current) {
+      console.log('Skip zoomIn because PDF is currently rendering');
+      return;
+    }
     const newZoom = Math.min(zoomLevel * 1.25, 3.0); // Max 300%
     setZoomLevel(newZoom);
   };
 
   const zoomOut = () => {
+    if (isRenderingRef.current) {
+      console.log('Skip zoomOut because PDF is currently rendering');
+      return;
+    }
     const newZoom = Math.max(zoomLevel / 1.25, 0.5); // Min 50%
     setZoomLevel(newZoom);
   };
 
   const resetZoom = () => {
+    if (isRenderingRef.current) {
+      console.log('Skip resetZoom because PDF is currently rendering');
+      return;
+    }
     setZoomLevel(1.0); // Reset to 100%
   };
 
@@ -537,12 +599,34 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
       updateCurrentPageFromScroll();
     };
 
+    // Chỉ cần lắng nghe scroll trên chính khung PDF
     container.addEventListener('scroll', handleScroll);
+
+    // Gọi 1 lần để sync currentPage ban đầu sau khi render xong
+    updateCurrentPageFromScroll();
     
     return () => {
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [currentPage]);
+  }, [containerReady, pdfDoc]);
+
+  // Fallback: nếu container vẫn trống sau khi có pdfDoc + containerReady, thử render lại
+  useEffect(() => {
+    if (!pdfDoc || !containerReady) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (container.children.length > 0) return;
+
+    const timeout = setTimeout(() => {
+      if (containerRef.current && containerRef.current.children.length === 0) {
+        console.log('PDF container still empty after load, re-rendering pages as fallback');
+        renderAllPages(pdfDoc);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [pdfDoc, containerReady, zoomLevel]);
 
   // Add mouse wheel zoom support
   useEffect(() => {
@@ -616,7 +700,7 @@ const PDFViewer = React.forwardRef(({ pdfUrl, highlightedChunks = [], onPageChan
                 type="number"
                 min="1"
                 max={totalPages}
-                value={pageInput || currentPage}
+                value={pageInput === '' ? currentPage : pageInput}
                 onChange={handlePageInputChange}
                 onFocus={() => setPageInput(currentPage.toString())}
                 onBlur={() => setPageInput('')}
