@@ -346,6 +346,8 @@ async def auto_name_dialog(
             title_model = "gpt-4o-mini"
         elif ProviderEnum.gemini in provider_set:
             title_model = "gemini-2.5-flash"
+        elif ProviderEnum.groq in provider_set:
+            title_model = "groq/llama-3.1-8b-instant"
         elif ProviderEnum.ollama in provider_set:
             title_model = "llama3"
         else:

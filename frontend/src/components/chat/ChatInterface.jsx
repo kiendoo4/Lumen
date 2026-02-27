@@ -326,6 +326,7 @@ function ChatInterface({ onProfileClick }) {
         confidence: data.confidence,
         sources: data.sources || [],
         citations: data.citations || [],
+        search_suggestions_html: data.search_suggestions_html || null,
         timestamp: new Date()
       };
 

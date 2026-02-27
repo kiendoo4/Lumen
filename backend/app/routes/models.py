@@ -17,5 +17,6 @@ async def get_models():
       openai=[ModelCard(**card) for card in MODEL_CARDS["openai"]],
       gemini=[ModelCard(**card) for card in MODEL_CARDS["gemini"]],
       ollama=[ModelCard(**card) for card in MODEL_CARDS["ollama"]],
+      groq=[ModelCard(**card) for card in MODEL_CARDS["groq"]],
   )
 

@@ -224,8 +224,8 @@ const DocumentLibrary = () => {
                 </div>
 
                 <div className="document-content">
-                  <h3 className="document-title" title={doc.title}>
-                    {doc.title}
+                  <h3 className="document-title" title={doc.file_name || doc.title}>
+                    {doc.file_name || doc.title}
                   </h3>
                   
                   {doc.authors && (

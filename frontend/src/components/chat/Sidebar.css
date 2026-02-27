@@ -430,11 +430,8 @@
 
 .sidebar-dialog-item.pinned:hover {
   background: var(--dialog-hover);
-}
-
-.sidebar-dialog-item.pinned.active {
+}.sidebar-dialog-item.pinned.active {
   background: var(--primary-color);
   color: white;
   border-color: var(--primary-color);
 }
-

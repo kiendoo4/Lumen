@@ -99,6 +99,7 @@ CITATION RULES:
 - Each citation should be separate: [1] [3] [5]
 - Only use citation numbers that exist in the provided citation mapping
 - Citations refer to specific text chunks from the paper with page numbers when available
+- Do not use the citation from text chunks if contained.
 - Example: "The main contribution [1] shows that the proposed method [3] achieves better performance."
 
 RESPONSE STRUCTURE:
@@ -182,6 +183,47 @@ async def run_paper_chat_agent_with_planning(llm_model_config, messages, documen
     """
     
     try:
+        # --- Prompt/context budgeting helpers (keep quality but avoid huge prompts) ---
+        def _truncate_text(text: str, max_chars: int) -> str:
+            if not text:
+                return ""
+            if len(text) <= max_chars:
+                return text
+            return text[: max_chars - 12] + "\n... (truncated)"
+
+        def _is_unhelpful_result(text: str) -> bool:
+            if not text:
+                return True
+            t = text.lower()
+            return any(
+                p in t
+                for p in [
+                    "no relevant",
+                    "not found",
+                    "cannot find",
+                    "i cannot find",
+                    "no information",
+                    "error",
+                    "failed to",
+                ]
+            )
+
+        def _dedupe_citations(citations_list: list) -> list:
+            seen = set()
+            out = []
+            for c in citations_list or []:
+                key = (
+                    c.get("page_number"),
+                    c.get("start_char"),
+                    c.get("end_char"),
+                    (c.get("content") or "")[:120],
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(c)
+            return out
+
         # Find the latest user message
         latest_user_message = None
         if messages:
@@ -453,7 +495,8 @@ Consider the type of question and break it down into specific, actionable tasks 
                 task_results.append({
                     "task_id": task_id,
                     "task_description": task_description,
-                    "result": clean_result,
+                    # Keep results compact to avoid bloating synthesis prompt; raw citations are preserved separately.
+                    "result": _truncate_text(clean_result, 2000),
                     "citations_count": len([c for c in citations if c.get('task_id') == task_id])
                 })
                 
@@ -496,34 +539,67 @@ Consider the type of question and break it down into specific, actionable tasks 
         synthesis_runner = Runner(agent=synthesis_agent, app_name=APP_NAME, session_service=session_service)
         
         # Create citation mapping for synthesis agent
+        # Keep only the most useful citations to avoid excessive prompt size.
+        citations = _dedupe_citations(citations)
+
+        # Prefer citations from higher-priority tasks, and drop citations from obviously unhelpful results.
+        task_priority = {t.get("id"): int(t.get("priority", 0) or 0) for t in tasks}
+        task_result_by_id = {tr.get("task_id"): tr for tr in task_results}
+
+        filtered = []
+        for c in citations:
+            tid = c.get("task_id")
+            tr = task_result_by_id.get(tid, {})
+            if tr and _is_unhelpful_result(tr.get("result", "")):
+                continue
+            filtered.append(c)
+
+        filtered.sort(key=lambda c: (task_priority.get(c.get("task_id"), 0), c.get("page_number") or 0), reverse=True)
+        max_citations_for_prompt = 20
+        filtered = filtered[:max_citations_for_prompt]
+
         citation_mapping = {}
-        for citation in citations:
+        for citation in filtered:
             citation_mapping[citation['index']] = {
-                'content': citation.get('content', ''),
+                # Truncate content per-citation so mapping stays small but still quotable.
+                'content': _truncate_text(citation.get('content', ''), 900),
                 'page_number': citation.get('page_number'),
+                'start_char': citation.get('start_char'),
+                'end_char': citation.get('end_char'),
                 'document_title': citation.get('document_title', document_title),
                 'task_id': citation.get('task_id', 'unknown')
             }
         
         logger.info(f"Created citation mapping with {len(citation_mapping)} citations: {list(citation_mapping.keys())}")
         
-        # Prepare synthesis prompt
+        # Prepare synthesis prompt (budgeted)
+        # Keep a short conversation history only.
+        convo_tail = messages[-5:] if messages else []
+        convo_history = [
+            {"role": msg.get("role", "user"), "content": _truncate_text(str(msg.get("content", "")), 600)}
+            for msg in convo_tail
+            if isinstance(msg, dict)
+        ]
+
+        tasks_for_prompt = tasks[:10]
+        task_results_for_prompt = task_results[:10]
+
         synthesis_prompt = f"""
 ORIGINAL QUERY: {latest_user_message}
 
 DOCUMENT: {document_title}
 
 TO-DO LIST EXECUTED:
-{json.dumps(tasks, indent=2)}
+{json.dumps(tasks_for_prompt, indent=2)}
 
 TASK RESULTS:
-{json.dumps(task_results, indent=2)}
+{json.dumps(task_results_for_prompt, indent=2)}
 
 CITATION MAPPING:
 {json.dumps(citation_mapping, indent=2)}
 
 CONVERSATION HISTORY:
-{json.dumps([{"role": msg.get("role", "user"), "content": str(msg.get("content", ""))} for msg in messages[-5:]], indent=2)}
+{json.dumps(convo_history, indent=2)}
 
 INSTRUCTIONS:
 Please synthesize all the task results into a comprehensive, well-structured response to the original query. 

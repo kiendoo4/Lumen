@@ -3,6 +3,21 @@ import { useLanguage } from '../contexts/LanguageContext';
 import axios from 'axios';
 import './CreateConversationModal.css';
 
+// Provider display metadata (keep in sync with Profile LLM providers)
+const PROVIDER_NAMES = {
+  openai: 'OpenAI',
+  gemini: 'Gemini',
+  groq: 'Groq',
+  ollama: 'Ollama'
+};
+
+const PROVIDER_LOGOS = {
+  openai: '/images/openai.png',
+  gemini: '/images/gemini.png',
+  groq: '/images/groq.png',
+  ollama: '/images/ollama.png'
+};
+
 function CreateConversationModal({ isOpen, onClose, onCreate }) {
   const { t } = useLanguage();
   const [name, setName] = useState('');
@@ -410,19 +425,13 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                   >
                     <div className="model-select-trigger-content">
                       <img
-                        src={
-                          selectedProvider === 'openai'
-                            ? '/images/openai.png'
-                            : selectedProvider === 'gemini'
-                              ? '/images/gemini.png'
-                              : '/images/ollama.png'
-                        }
-                        alt={selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'gemini' ? 'Gemini' : 'Ollama'}
+                        src={PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai}
+                        alt={PROVIDER_NAMES[selectedProvider] || selectedProvider || 'OpenAI'}
                         className="model-select-trigger-logo"
                       />
                       <div className="model-select-trigger-text">
                         <span className="model-select-trigger-name">
-                          {selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'gemini' ? 'Gemini' : 'Ollama'}
+                          {PROVIDER_NAMES[selectedProvider] || selectedProvider || 'OpenAI'}
                         </span>
                       </div>
                     </div>
@@ -444,17 +453,9 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                       {enabledProviders.length > 0 ? (
                         enabledProviders.map(provider => {
                           const name =
-                            provider === 'openai'
-                              ? 'OpenAI'
-                              : provider === 'gemini'
-                                ? 'Gemini'
-                                : 'Ollama';
+                            PROVIDER_NAMES[provider] || provider;
                           const logo =
-                            provider === 'openai'
-                              ? '/images/openai.png'
-                              : provider === 'gemini'
-                                ? '/images/gemini.png'
-                                : '/images/ollama.png';
+                            PROVIDER_LOGOS[provider] || PROVIDER_LOGOS.openai;
 
                           return (
                             <div
@@ -517,14 +518,8 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                     >
                       <div className="model-select-trigger-content">
                         <img
-                          src={
-                            selectedProvider === 'openai'
-                              ? '/images/openai.png'
-                              : selectedProvider === 'gemini'
-                                ? '/images/gemini.png'
-                                : '/images/ollama.png'
-                          }
-                          alt={selectedProvider}
+                          src={PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai}
+                          alt={PROVIDER_NAMES[selectedProvider] || selectedProvider || 'OpenAI'}
                           className="model-select-trigger-logo"
                         />
                         <div className="model-select-trigger-text">
@@ -564,14 +559,8 @@ function CreateConversationModal({ isOpen, onClose, onCreate }) {
                           >
                             <div className="model-select-option-header">
                               <img
-                                src={
-                                  selectedProvider === 'openai'
-                                    ? '/images/openai.png'
-                                    : selectedProvider === 'gemini'
-                                      ? '/images/gemini.png'
-                                      : '/images/ollama.png'
-                                }
-                                alt={selectedProvider}
+                                src={PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai}
+                                alt={PROVIDER_NAMES[selectedProvider] || selectedProvider || 'OpenAI'}
                                 className="model-select-option-logo"
                               />
                               <div className="model-select-option-title">

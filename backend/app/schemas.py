@@ -143,6 +143,7 @@ class ModelCardsResponse(BaseModel):
     openai: List[ModelCard]
     gemini: List[ModelCard]
     ollama: List[ModelCard]
+    groq: List[ModelCard]
 
 # Message Schemas
 class MessageResponse(BaseModel):

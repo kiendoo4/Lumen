@@ -8,7 +8,6 @@ const DocumentProcessing = () => {
   const [status, setStatus] = useState('pending');
   const [documentInfo, setDocumentInfo] = useState(null);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (!documentId) {
@@ -34,26 +33,13 @@ const DocumentProcessing = () => {
         setStatus(data.processing_status);
         setDocumentInfo(data);
 
-        // Update progress based on status
-        switch (data.processing_status) {
-          case 'pending':
-            setProgress(10);
-            break;
-          case 'processing':
-            setProgress(50);
-            break;
-          case 'completed':
-            setProgress(100);
-            // Wait a moment then navigate to chat
-            setTimeout(() => {
-              navigate(`/paper-chat/document/${documentId}`);
-            }, 1500);
-            break;
-          case 'failed':
-            setError('Document processing failed. Please try uploading again.');
-            break;
-          default:
-            break;
+        if (data.processing_status === 'completed') {
+          // Wait a moment then navigate to chat
+          setTimeout(() => {
+            navigate(`/paper-chat/document/${documentId}`);
+          }, 1500);
+        } else if (data.processing_status === 'failed') {
+          setError('Document processing failed. Please try uploading again.');
         }
       } catch (err) {
         setError(err.message);
@@ -63,12 +49,16 @@ const DocumentProcessing = () => {
     // Initial poll
     pollStatus();
 
-    // Set up polling interval
-    const interval = setInterval(pollStatus, 2000);
+    // Set up polling interval (stop when done/failed)
+    const interval = setInterval(() => {
+      // don't keep polling if we've hit a terminal state
+      if (status === 'completed' || status === 'failed' || error) return;
+      pollStatus();
+    }, 2000);
 
     // Cleanup
     return () => clearInterval(interval);
-  }, [documentId, navigate]);
+  }, [documentId, navigate, status, error]);
 
   const getStatusMessage = () => {
     switch (status) {
@@ -176,41 +166,31 @@ const DocumentProcessing = () => {
 
           {documentInfo && (
             <div className="document-info">
-              <h3>{documentInfo.title}</h3>
+              <h3>{documentInfo.file_name || documentInfo.title}</h3>
             </div>
           )}
 
-          <div className="progress-container">
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <p className="progress-text">{progress}% complete</p>
-          </div>
+          {/* We intentionally do not show numeric percentages; just show current stage */}
 
           <div className="processing-steps">
-            <div className={`step ${progress >= 10 ? 'completed' : ''}`}>
+            <div className="step completed">
               <div className="step-icon">
-                {progress >= 10 ? (
+                {(
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="20,6 9,17 4,12"></polyline>
                   </svg>
-                ) : (
-                  <div className="step-number">1</div>
                 )}
               </div>
               <span>Document uploaded</span>
             </div>
 
-            <div className={`step ${progress >= 50 ? 'completed' : progress >= 10 ? 'active' : ''}`}>
+            <div className={`step ${status === 'completed' ? 'completed' : (status === 'pending' || status === 'processing') ? 'active' : ''}`}>
               <div className="step-icon">
-                {progress >= 50 ? (
+                {status === 'completed' ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="20,6 9,17 4,12"></polyline>
                   </svg>
-                ) : progress >= 10 ? (
+                ) : (status === 'pending' || status === 'processing') ? (
                   <div className="step-spinner">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -223,13 +203,9 @@ const DocumentProcessing = () => {
               <span>Processing text and creating embeddings</span>
             </div>
 
-            <div className={`step ${progress >= 100 ? 'completed' : progress >= 50 ? 'active' : ''}`}>
+            <div className={`step ${status === 'completed' ? 'active' : ''}`}>
               <div className="step-icon">
-                {progress >= 100 ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="20,6 9,17 4,12"></polyline>
-                  </svg>
-                ) : progress >= 50 ? (
+                {status === 'completed' ? (
                   <div className="step-spinner">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56"/>

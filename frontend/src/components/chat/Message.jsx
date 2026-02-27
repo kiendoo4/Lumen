@@ -18,6 +18,7 @@ function Message({ message, onDelete, onRedo }) {
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
   const [expandedResults, setExpandedResults] = useState({});
   const [isCitationsExpanded, setIsCitationsExpanded] = useState(false);
+  const [isSearchSuggestionsExpanded, setIsSearchSuggestionsExpanded] = useState(false);
 
   return (
     <div className={`message-container ${isUser ? 'message-container-user' : 'message-container-agent'}`}>
@@ -204,6 +205,56 @@ function Message({ message, onDelete, onRedo }) {
             );
           })()}
         </div>
+        {(() => {
+          // Google Search grounding requirement: display renderedContent (Search suggestions HTML) when present.
+          // Prefer explicit field from backend response; fall back to reasoning step persistence.
+          const reasoningSteps = Array.isArray(message.reasoning)
+            ? message.reasoning
+            : (message.reasoning?.steps || []);
+
+          const persistedHtmlStep = (reasoningSteps || []).find(
+            (s) => s && s.type === 'google_search_suggestions' && s.rendered_content
+          );
+
+          const html = message.search_suggestions_html || persistedHtmlStep?.rendered_content;
+          if (!html || typeof html !== 'string' || html.trim().length === 0) return null;
+
+          return (
+            <div className="search-suggestions">
+              <button
+                className="search-suggestions-toggle"
+                onClick={() => setIsSearchSuggestionsExpanded(!isSearchSuggestionsExpanded)}
+                type="button"
+              >
+                <span className="search-suggestions-toggle-text">
+                  {t('message.searchSuggestions') || 'Search suggestions'}
+                </span>
+                <svg
+                  className={`search-suggestions-toggle-icon ${isSearchSuggestionsExpanded ? 'expanded' : ''}`}
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+
+              {isSearchSuggestionsExpanded && (
+                <div className="search-suggestions-content">
+                  <iframe
+                    title="Google Search suggestions"
+                    className="search-suggestions-iframe"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                    srcDoc={html}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {/* Citations list at the bottom */}
         {(() => {
           const allCitations = message.citations || [];
@@ -341,6 +392,7 @@ function Message({ message, onDelete, onRedo }) {
           // Get tool display names (no emoji)
           const getToolDisplayName = (toolName) => {
             if (toolName === 'search_duckduckgo') return 'Search DuckDuckGo';
+            if (toolName === 'google_search_agent') return 'Google Search';
             if (toolName === 'search_url') return 'Read URL';
             return toolName;
           };

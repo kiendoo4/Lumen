@@ -59,6 +59,11 @@ def search_paper_rag(query: str, document_id: int, limit: int = 10) -> str:
                 "page_number": result.get('page_number'),
                 "start_char": result.get('start_char'),
                 "end_char": result.get('end_char'),
+                "page_start_char": result.get('page_start_char'),
+                "page_end_char": result.get('page_end_char'),
+                "anchor_start": result.get('anchor_start'),
+                "anchor_end": result.get('anchor_end'),
+                "anchor_middle": result.get('anchor_middle'),
                 "relevance_score": round(result['score'], 3)
             }
             chunks.append(chunk_data)
@@ -70,6 +75,11 @@ def search_paper_rag(query: str, document_id: int, limit: int = 10) -> str:
                 "page_number": result.get('page_number'),
                 "start_char": result.get('start_char'),
                 "end_char": result.get('end_char'),
+                "page_start_char": result.get('page_start_char'),
+                "page_end_char": result.get('page_end_char'),
+                "anchor_start": result.get('anchor_start'),
+                "anchor_end": result.get('anchor_end'),
+                "anchor_middle": result.get('anchor_middle'),
                 "score": result['score'],
                 "document_title": document.title or document.file_name
             })

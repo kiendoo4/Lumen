@@ -7,25 +7,31 @@ import axios from 'axios';
 import './ProfilePage.css';
 import '../modals/CreateConversationModal.css';
 
+// All supported LLM providers (used for "Models to be added" list)
+const ALL_LLM_PROVIDERS = ['openai', 'gemini', 'ollama', 'groq'];
+
 // Provider capabilities mapping
 const PROVIDER_CAPABILITIES = {
   openai: ['LLM', 'TEXT EMBEDDING', 'TTS', 'TEXT RE-RANK', 'SPEECH2TEXT', 'MODERATION'],
   gemini: ['LLM', 'TEXT EMBEDDING', 'IMAGE2TEXT'],
-  ollama: ['LLM', 'TEXT EMBEDDING', 'SPEECH2TEXT', 'MODERATION']
+  ollama: ['LLM', 'TEXT EMBEDDING', 'SPEECH2TEXT', 'MODERATION'],
+  groq: ['LLM', 'CHAT']
 };
 
 // Provider display names
 const PROVIDER_NAMES = {
   openai: 'OpenAI',
   gemini: 'Gemini',
-  ollama: 'Ollama'
+  ollama: 'Ollama',
+  groq: 'Groq'
 };
 
 // Provider logos
 const PROVIDER_LOGOS = {
   openai: '/images/openai.png',
   gemini: '/images/gemini.png',
-  ollama: '/images/ollama.png'
+  ollama: '/images/ollama.png',
+  groq: '/images/groq.png'
 };
 
 function ProviderModal({ isOpen, onClose, provider, onSave, existingConfig }) {
@@ -125,6 +131,7 @@ function LLMProvidersTab() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [expandedProviders, setExpandedProviders] = useState({});
   const [showMoreModels, setShowMoreModels] = useState({});
+  const [confirmProvider, setConfirmProvider] = useState(null);
 
   React.useEffect(() => {
     fetchProviders();
@@ -175,15 +182,24 @@ function LLMProvidersTab() {
   };
 
   const handleRemoveProvider = async (provider) => {
-    if (!window.confirm(t('profile.removeProviderConfirm'))) return;
-    
+    // Open lightweight in-app confirm instead of browser alert
+    setConfirmProvider(provider);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!confirmProvider) return;
     try {
-      await axios.put(`/api/llm-providers/${provider}`, { api_key: '', base_url: '' });
+      setLoading(true);
+      setError('');
+      await axios.put(`/api/llm-providers/${confirmProvider}`, { api_key: '', base_url: '' });
       await fetchProviders();
       setSuccess(t('profile.providerRemoved'));
       setTimeout(() => setSuccess(''), 3000);
+      setConfirmProvider(null);
     } catch (error) {
       setError(error.response?.data?.detail || t('profile.updateError'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -202,7 +218,9 @@ function LLMProvidersTab() {
   };
 
   const addedProviders = Object.keys(providers).filter(p => providers[p].api_key || (p === 'ollama' && providers[p].base_url));
-  const availableProviders = ['openai', 'gemini', 'ollama'].filter(p => !addedProviders.includes(p));
+  const availableProviders = ALL_LLM_PROVIDERS.filter(p => !addedProviders.includes(p));
+  // Sort so Groq is first in "Models to be added" for visibility
+  const availableProvidersSorted = [...availableProviders].sort((a, b) => (a === 'groq' ? -1 : b === 'groq' ? 1 : 0));
 
   const getProviderCapabilityTags = (provider) => {
     const models = availableModels[provider] || [];
@@ -216,8 +234,46 @@ function LLMProvidersTab() {
 
   return (
     <div className="llm-providers-container">
-      {error && <div className="profile-error-message">{error}</div>}
-      {success && <div className="profile-success-message">{success}</div>}
+      {/* Global-ish toasts fixed on screen */}
+      <div className="profile-toast-container">
+        {error && (
+          <div className="profile-toast profile-toast-error">
+            <span>{error}</span>
+          </div>
+        )}
+        {success && (
+          <div className="profile-toast profile-toast-success">
+            <span>{success}</span>
+          </div>
+        )}
+      </div>
+
+      {/* In-app confirm instead of browser window.confirm */}
+      {confirmProvider && (
+        <div className="profile-toast-confirm">
+          <span className="profile-toast-confirm-text">
+            {t('profile.removeProviderConfirm')}
+          </span>
+          <div className="profile-toast-confirm-actions">
+            <button
+              type="button"
+              className="profile-toast-confirm-button cancel"
+              onClick={() => setConfirmProvider(null)}
+              disabled={loading}
+            >
+              {t('settings.cancel') || 'Cancel'}
+            </button>
+            <button
+              type="button"
+              className="profile-toast-confirm-button danger"
+              onClick={handleConfirmRemove}
+              disabled={loading}
+            >
+              {loading ? t('auth.loading') : t('profile.remove')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Added Models Section */}
       <div className="llm-section">
@@ -327,12 +383,13 @@ function LLMProvidersTab() {
                     {isExpanded && hasModels && (
                       <div className="llm-models-list">
                         {displayModels.map((model, idx) => {
-                          const modelId = typeof model === 'string' ? model : (model.id || model.name || model);
-                          const modelDesc = typeof model === 'object' ? (model.description || 'chat') : 'chat';
+                          const modelObj = typeof model === 'object' ? model : { id: model, name: model, description: '' };
+                          const modelName = modelObj.name || modelObj.id || '';
+                          const modelTags = modelObj.tags || modelObj.description || '';
                           return (
                             <div key={idx} className="llm-model-item">
-                              <span className="llm-model-name">{modelId}</span>
-                              <span className="llm-model-type">{modelDesc}</span>
+                              <span className="llm-model-name">{modelName}</span>
+                              <span className="llm-model-type">{modelTags}</span>
                             </div>
                           );
                         })}
@@ -362,7 +419,7 @@ function LLMProvidersTab() {
         </div>
 
         <div className="llm-providers-list">
-          {availableProviders.map(provider => (
+          {availableProvidersSorted.map(provider => (
             <div key={provider} className="llm-provider-card available">
               <div className="llm-provider-header">
                 <div className="llm-provider-info">

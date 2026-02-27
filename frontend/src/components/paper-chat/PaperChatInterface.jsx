@@ -552,7 +552,7 @@ const PaperChatInterface = () => {
         showBackButton={true}
         backRoute="/paper-chat"
         backTooltip="Back to Library"
-        dialogTitle={document?.title}
+        dialogTitle={document?.file_name || document?.title}
         showDialogMenu={false}
       >
         <Tooltip text={t('paperChat.newSession') || 'Start a new chat session'}>

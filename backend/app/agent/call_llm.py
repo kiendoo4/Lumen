@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 
 # Import tools
-from app.agent.tools.search_duckduckgo import search_duckduckgo
+from app.agent.tools.search_google import build_google_search_tool
 from app.agent.tools.search_url import search_url
 from app.agent.tools.search_semantic_scholar import (
     search_semantic_scholar,
@@ -39,12 +39,12 @@ CRITICAL RULE - KNOWLEDGE USAGE:
 
 Your capabilities include:
 1. Answering questions based ONLY on information from conversation context or tools (NOT from your pretrained knowledge)
-2. Searching the web using DuckDuckGo when you need current information or are uncertain about an answer
+2. Searching the web using Google Search when you need current information or are uncertain about an answer
 3. Reading and extracting information from specific URLs when users ask you to visit a webpage
 4. Comprehensive Semantic Scholar API tools for academic research
 
-Semantic Scholar Tools (use these for academic research):
-- search_semantic_scholar: Search for papers by keywords, topics, or titles. PRIMARY tool for finding academic papers.
+Semantic Scholar + Google Search (primary tools for retrieval):
+- search_semantic_scholar: Search for academic papers by keywords, topics, or titles.
 - get_paper_by_id: Get detailed information about a specific paper using its ID, DOI, or arXiv ID.
 - search_authors: Search for researchers/authors by name.
 - get_author_by_id: Get detailed information about an author including their papers, citations, and h-index.
@@ -52,13 +52,14 @@ Semantic Scholar Tools (use these for academic research):
 - get_paper_references: Get all papers that a specific paper references (bibliography).
 - get_recommended_papers: Get paper recommendations based on a seed paper.
 - get_author_papers: Get all papers published by a specific author.
+- Google Search tool: High-quality web search for both academic context (e.g., finding PDFs, project pages, blogs) and non-academic information.
 
 Guidelines:
 - ALWAYS use search_semantic_scholar when:
   * Users ask about research papers, academic papers, scientific publications, or scholarly articles
   * Users want to find papers on a specific topic, by a specific author, or with specific keywords
   * Users ask for academic literature, scientific studies, or research publications
-  * This is the PRIMARY tool for academic paper searches - use it instead of search_duckduckgo for scholarly content
+  * Prefer it when you need structured academic metadata (authors, venue, citations, references, paper IDs)
 
 - Use get_paper_by_id when:
   * Users explicitly provide a paper ID (e.g., "paper ID: 123456") or DOI
@@ -92,11 +93,11 @@ Guidelines:
   * Users want to see all papers by a specific author
   * You have an author ID and need their publication list
 
-- Use the search_duckduckgo tool when:
+- Use the Google Search tool when:
   * Users ask about current events, recent news, or up-to-date information
   * Users ask about specific topics that may have recent developments or updates (non-academic)
   * You are not certain about an answer or need to verify information (non-academic)
-  * Users ask for general recommendations, lists, or collections of resources (non-academic)
+  * Users ask for general web recommendations, lists, or collections of resources (non-academic)
   * The question requires finding specific information that might not be in your training data (non-academic)
 
 - Use the search_url tool when:
@@ -115,7 +116,7 @@ Guidelines:
 - If a user asks about a paper that was mentioned in a previous message, you can refer to it using the citation number from that message.
 - IMPORTANT: When you use search_url to read a URL, that URL's content is automatically saved in the conversation context. If the user later asks about information from a URL that was read earlier, you can reference it using citations. The system will show you "[Previously accessed URLs in this conversation:]" with their content previews. Use the citation format [1], [2], etc. to reference these URLs when answering questions based on their content.
 - If you cannot find the information requested after searching, be honest about it and suggest alternatives
-- Do NOT say you cannot help without first trying to search for the information using the search_duckduckgo tool
+- Do NOT say you cannot help without first trying to search for the information using the Google Search tool
 - REMEMBER: Do NOT use your pretrained knowledge. Only use information present in the conversation context or retrieved via the tools above. If the required context is not provided or cannot be found through tools, respond clearly that you do not know.
 """
 )
@@ -136,12 +137,21 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
     """
     
     # Create the model instance from the LLM configuration
-    model_card = llm_model_config.get('llm_factory').lower() + "/" + llm_model_config.get('llm_name')
+    llm_factory = (llm_model_config.get('llm_factory') or '').lower()
+    llm_name = llm_model_config.get('llm_name') or ''
+    model_card = llm_factory + "/" + llm_name
+    print("model_card: ", model_card)
     model = LiteLlm(model_card, api_key=llm_model_config.get('api_key'))
     root_agent.model = model
+
+    google_search_tool = build_google_search_tool(model)
+
     root_agent.tools = [
-        search_duckduckgo, 
-        search_url, 
+        # Web search
+        google_search_tool,
+        # URL reading
+        search_url,
+        # Academic tools
         search_semantic_scholar,
         get_paper_by_id,
         get_author_by_id,
@@ -149,7 +159,7 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
         get_paper_citations,
         get_paper_references,
         get_recommended_papers,
-        get_author_papers
+        get_author_papers,
     ]
     if timezone:
         # Use user's timezone if provided
@@ -330,6 +340,7 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
         reasoning_steps = []  # Store tool calls for reasoning display
         citations = []  # Store citation metadata from search results
         url_contents = []  # Store URL content for database storage
+        google_search_suggestions_html = None  # renderedContent requirement (if returned)
         response = ""
         async for event in runner.run_async(
             user_id=USER_ID, 
@@ -338,6 +349,31 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
         ):
             print("lmeo: ", event.content.parts)
             events += [event]
+
+            # Capture grounding metadata from Google Search tool (if present).
+            # GoogleSearchAgentTool stores it in state as `temp:_adk_grounding_metadata`.
+            try:
+                if hasattr(event, "actions") and event.actions and getattr(event.actions, "state_delta", None):
+                    state_delta = event.actions.state_delta
+                    if isinstance(state_delta, dict) and "temp:_adk_grounding_metadata" in state_delta:
+                        gm = state_delta.get("temp:_adk_grounding_metadata")
+                        # Try common shapes:
+                        # - dict: {"renderedContent": "<html...>"}
+                        # - object with attribute rendered_content/renderedContent
+                        if isinstance(gm, dict):
+                            google_search_suggestions_html = (
+                                gm.get("renderedContent")
+                                or gm.get("rendered_content")
+                                or google_search_suggestions_html
+                            )
+                        else:
+                            google_search_suggestions_html = (
+                                getattr(gm, "rendered_content", None)
+                                or getattr(gm, "renderedContent", None)
+                                or google_search_suggestions_html
+                            )
+            except Exception:
+                pass
             
             # Extract tool calls and responses for reasoning display
             if event.content and event.content.parts:
@@ -433,7 +469,19 @@ async def run_lumen_agent(llm_model_config, messages, timezone=None):
                             response = part.text
                             break
         
-        return response, reasoning_steps, citations, url_contents
+        # Per Google Search grounding requirement:
+        # If the model provides Search suggestions UI HTML ("renderedContent"),
+        # forward it to the frontend so it can be displayed.
+        if google_search_suggestions_html:
+            reasoning_steps.append(
+                {
+                    "type": "google_search_suggestions",
+                    "rendered_content": google_search_suggestions_html,
+                    "timestamp": time.time(),
+                }
+            )
+
+        return response, reasoning_steps, citations, url_contents, google_search_suggestions_html
         
     finally:
         # Clean up session asynchronously
@@ -463,4 +511,4 @@ async def call_lumen_agent(llm_model_config, messages, timezone=None):
         # Return error message if something goes wrong
         error_msg = f"Error processing request: {str(e)}"
         print(f"[LUMEN_AGENT] Error: {error_msg}")
-        return "", [], [], []
+        return "", [], [], [], None

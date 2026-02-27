@@ -8,6 +8,7 @@ class ProviderEnum(str, enum.Enum):
     openai = "openai"
     gemini = "gemini"
     ollama = "ollama"
+    groq = "groq"
 
 class RoleEnum(str, enum.Enum):
     user = "user"
@@ -185,6 +186,13 @@ class DocumentChunk(Base):
     page_number = Column(Integer)
     start_char = Column(Integer)
     end_char = Column(Integer)
+    # Offsets within the page-extracted text (helps reliable highlighting/navigation)
+    page_start_char = Column(Integer)
+    page_end_char = Column(Integer)
+    # Short anchors for frontend highlighting (more robust than matching full chunk text)
+    anchor_start = Column(Text)
+    anchor_end = Column(Text)
+    anchor_middle = Column(Text)
     qdrant_point_id = Column(String(255))  # UUID in Qdrant
     created_at = Column(TIMESTAMP, server_default=func.now())
     

@@ -64,13 +64,25 @@ async def update_provider(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if provider not in ["openai", "gemini", "ollama"]:
+    if provider not in ["openai", "gemini", "ollama", "groq"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid provider"
         )
     
     provider_enum = ProviderEnum(provider)
+
+    # Treat empty config as "remove provider"
+    removing = (not (config.api_key or "").strip()) and (not (config.base_url or "").strip())
+    if removing:
+        existing = db.query(LLMProvider).filter(
+            LLMProvider.user_id == current_user["userId"],
+            LLMProvider.provider == provider_enum
+        ).first()
+        if existing:
+            db.delete(existing)
+            db.commit()
+        return {"message": "Provider removed"}
 
     # Validate configuration before saving
     if provider_enum == ProviderEnum.openai:
@@ -148,6 +160,31 @@ async def update_provider(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot reach Ollama or default model is not available",
+            ) from e
+    elif provider_enum == ProviderEnum.groq:
+        if not config.api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key is required for Groq",
+            )
+        test_model = "groq/llama-3.1-8b-instant"
+        try:
+            litellm.completion(
+                model=test_model,
+                messages=[{"role": "user", "content": "ping"}],
+                api_key=config.api_key,
+                max_tokens=1,
+            )
+        except Exception as e:
+            error_str = str(e).lower()
+            if any(k in error_str for k in ["api key", "authentication", "unauthorized", "invalid", "403", "401"]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid Groq API key or configuration",
+                ) from e
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Groq API error: {str(e)}",
             ) from e
     existing = db.query(LLMProvider).filter(
         LLMProvider.user_id == current_user["userId"],

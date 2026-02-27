@@ -117,6 +117,11 @@ class QdrantManager:
                     'page_number': doc.get('page_number'),
                     'start_char': doc.get('start_char'),
                     'end_char': doc.get('end_char'),
+                    'page_start_char': doc.get('page_start_char'),
+                    'page_end_char': doc.get('page_end_char'),
+                    'anchor_start': doc.get('anchor_start'),
+                    'anchor_end': doc.get('anchor_end'),
+                    'anchor_middle': doc.get('anchor_middle'),
                 }
                 
                 points.append(PointStruct(
@@ -191,6 +196,11 @@ class QdrantManager:
                     'page_number': result.payload.get('page_number') if result.payload else None,
                     'start_char': result.payload.get('start_char') if result.payload else None,
                     'end_char': result.payload.get('end_char') if result.payload else None,
+                    'page_start_char': result.payload.get('page_start_char') if result.payload else None,
+                    'page_end_char': result.payload.get('page_end_char') if result.payload else None,
+                    'anchor_start': result.payload.get('anchor_start') if result.payload else None,
+                    'anchor_end': result.payload.get('anchor_end') if result.payload else None,
+                    'anchor_middle': result.payload.get('anchor_middle') if result.payload else None,
                 })
             
             logger.info(f"Found {len(results)} similar documents for query")

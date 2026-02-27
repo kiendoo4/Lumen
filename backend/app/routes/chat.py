@@ -34,6 +34,8 @@ def _choose_default_model(db, user_id: int) -> str:
         return "gpt-4o-mini"
     if ProviderEnum.gemini in provider_set:
         return "gemini-2.5-flash"
+    if ProviderEnum.groq in provider_set:
+        return "groq/llama-3.1-8b-instant"
     if ProviderEnum.ollama in provider_set:
         return "llama3"
 
@@ -237,6 +239,10 @@ async def chat(
             llm_factory = "gemini"
             # Remove "gemini/" prefix if present
             llm_name = model.replace("gemini/", "") if model.startswith("gemini/") else model
+        elif model.startswith("groq/"):
+            provider = "groq"
+            llm_factory = "groq"
+            llm_name = model.replace("groq/", "") if model.startswith("groq/") else model
         elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
             provider = "ollama"
             llm_factory = "ollama"
@@ -271,7 +277,9 @@ async def chat(
             print(f"  [{i}] {role}: {content_preview}")
         
         # Call lumen agent with tools
-        response, reasoning_steps, citations, url_contents = await call_lumen_agent(llm_model_config, messages, timezone=user_timezone)
+        response, reasoning_steps, citations, url_contents, google_search_suggestions_html = await call_lumen_agent(
+            llm_model_config, messages, timezone=user_timezone
+        )
         
         # Check if response is valid
         if not response or (isinstance(response, str) and not response.strip()):
@@ -383,6 +391,7 @@ async def chat(
             "sources": [],
             "citations": final_citations if final_citations else [],
             "url_contents": saved_sources if saved_sources else None,
+            "search_suggestions_html": google_search_suggestions_html,
         }
     except ValueError as e:
         # API key configuration errors

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS llm_providers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  provider ENUM('openai', 'gemini', 'ollama') NOT NULL,
+  provider ENUM('openai', 'gemini', 'ollama', 'groq') NOT NULL,
   api_key TEXT,
   base_url VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

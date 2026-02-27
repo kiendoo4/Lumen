@@ -3,6 +3,21 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import axios from 'axios';
 import './CreateConversationModal.css';
 
+// Provider display metadata (keep in sync with Profile LLM providers)
+const PROVIDER_NAMES = {
+  openai: 'OpenAI',
+  gemini: 'Gemini',
+  groq: 'Groq',
+  ollama: 'Ollama'
+};
+
+const PROVIDER_LOGOS = {
+  openai: '/images/openai.png',
+  gemini: '/images/gemini.png',
+  groq: '/images/groq.png',
+  ollama: '/images/ollama.png'
+};
+
 function ConversationSettingsModal({ 
   isOpen, 
   onClose, 
@@ -110,21 +125,16 @@ function ConversationSettingsModal({
     }
   };
 
-  // Sync selectedProvider với enabledProviders sau khi cả hai đã load
+  // Derive provider from selectedModel + modelCards instead of forcing first enabled provider
   useEffect(() => {
-    if (enabledProviders.length > 0 && Object.keys(modelCards).length > 0) {
-      // Nếu selectedProvider không có trong danh sách enabled, chọn provider đầu tiên
-      if (!enabledProviders.includes(selectedProvider)) {
-        const firstProvider = enabledProviders[0];
-        setSelectedProvider(firstProvider);
-        // Reset model về model đầu tiên của provider mới
-        const firstProviderModels = modelCards[firstProvider] || [];
-        if (firstProviderModels.length > 0) {
-          setSelectedModel(firstProviderModels[0].id);
-        }
-      }
+    if (!selectedModel || Object.keys(modelCards).length === 0) return;
+    const providerKey = Object.keys(modelCards).find((provider) =>
+      (modelCards[provider] || []).some((m) => m.id === selectedModel)
+    );
+    if (providerKey && providerKey !== selectedProvider) {
+      setSelectedProvider(providerKey);
     }
-  }, [enabledProviders, modelCards, selectedProvider]);
+  }, [selectedModel, modelCards, selectedProvider]);
 
   const fetchFirstDialog = async () => {
     if (!conversationId) return;
@@ -142,15 +152,6 @@ function ConversationSettingsModal({
         setPresencePenalty(parseFloat(dialog.presence_penalty) || 0.0);
         setFrequencyPenalty(parseFloat(dialog.frequency_penalty) || 0.0);
         setMaxTokens(dialog.max_tokens || 2000);
-        
-        // Determine provider from model
-        if (dialog.llm_model?.startsWith('gpt') || dialog.llm_model?.startsWith('text-')) {
-          setSelectedProvider('openai');
-        } else if (dialog.llm_model?.startsWith('gemini')) {
-          setSelectedProvider('gemini');
-        } else {
-          setSelectedProvider('ollama');
-        }
       }
     } catch (error) {
       console.error('Error fetching first dialog:', error);
@@ -263,23 +264,8 @@ function ConversationSettingsModal({
     onClose();
   };
 
-  const currentModel =
-    (modelCards[selectedProvider] || []).find(m => m.id === selectedModel) ||
-    (modelCards[selectedProvider] || [])[0];
-
-  const providerDisplayName =
-    selectedProvider === 'openai'
-      ? 'OpenAI'
-      : selectedProvider === 'gemini'
-        ? 'Gemini'
-        : 'Ollama';
-
-  const providerLogoSrc =
-    selectedProvider === 'openai'
-      ? '/images/openai.png'
-      : selectedProvider === 'gemini'
-        ? '/images/gemini.png'
-        : '/images/ollama.png';
+  const providerDisplayName = PROVIDER_NAMES[selectedProvider] || selectedProvider || 'OpenAI';
+  const providerLogoSrc = PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai;
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -527,13 +513,17 @@ function ConversationSettingsModal({
                                   ? 'OpenAI'
                                   : provider === 'gemini'
                                     ? 'Gemini'
-                                    : 'Ollama';
+                                    : provider === 'groq'
+                                      ? 'Groq'
+                                      : 'Ollama';
                               const logo =
                                 provider === 'openai'
                                   ? '/images/openai.png'
                                   : provider === 'gemini'
                                     ? '/images/gemini.png'
-                                    : '/images/ollama.png';
+                                    : provider === 'groq'
+                                      ? '/images/groq.png'
+                                      : '/images/ollama.png';
 
                               return (
                                 <div
@@ -594,19 +584,13 @@ function ConversationSettingsModal({
                         >
                           <div className="model-select-trigger-content">
                             <img
-                              src={
-                                selectedProvider === 'openai'
-                                  ? '/images/openai.png'
-                                  : selectedProvider === 'gemini'
-                                    ? '/images/gemini.png'
-                                    : '/images/ollama.png'
-                              }
-                              alt={selectedProvider}
+                              src={PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai}
+                              alt={providerDisplayName}
                               className="model-select-trigger-logo"
                             />
                             <div className="model-select-trigger-text">
                               <span className="model-select-trigger-name">
-                                {currentModel ? currentModel.name : selectedModel}
+                                {(modelCards[selectedProvider] || []).find(m => m.id === selectedModel)?.name || selectedModel}
                               </span>
                             </div>
                           </div>
@@ -641,14 +625,8 @@ function ConversationSettingsModal({
                               >
                                 <div className="model-select-option-header">
                                   <img
-                                    src={
-                                      selectedProvider === 'openai'
-                                        ? '/images/openai.png'
-                                        : selectedProvider === 'gemini'
-                                          ? '/images/gemini.png'
-                                          : '/images/ollama.png'
-                                    }
-                                    alt={selectedProvider}
+                                    src={PROVIDER_LOGOS[selectedProvider] || PROVIDER_LOGOS.openai}
+                                    alt={providerDisplayName}
                                     className="model-select-option-logo"
                                   />
                                   <div className="model-select-option-title">

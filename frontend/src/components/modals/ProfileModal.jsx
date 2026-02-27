@@ -225,7 +225,8 @@ function LLMProvidersTab() {
   const [providers, setProviders] = useState({
     openai: { api_key: '', base_url: '' },
     gemini: { api_key: '', base_url: '' },
-    ollama: { api_key: '', base_url: 'http://localhost:11434' }
+    ollama: { api_key: '', base_url: 'http://localhost:11434' },
+    groq: { api_key: '', base_url: '' }
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -269,7 +270,7 @@ function LLMProvidersTab() {
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      {['openai', 'gemini', 'ollama'].map(provider => (
+      {['openai', 'gemini', 'ollama', 'groq'].map(provider => (
         <div key={provider} className="provider-section">
           <h3>{provider.toUpperCase()}</h3>
           <div className="form-field">

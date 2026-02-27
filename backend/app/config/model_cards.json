@@ -292,6 +292,188 @@
       "model_type": "chat",
       "is_tools": false
     }
+  ],
+  "groq": [
+    {
+      "id": "groq/meta-llama/llama-prompt-guard-2-22m",
+      "name": "meta-llama/llama-prompt-guard-2-22m",
+      "description": "MODERATION",
+      "tags": "MODERATION",
+      "max_tokens": 512,
+      "model_type": "moderation",
+      "is_tools": false
+    },
+    {
+      "id": "groq/canopylabs/orpheus-v1-english",
+      "name": "canopylabs/orpheus-v1-english",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 50000,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/llama-3.3-70b-versatile",
+      "name": "llama-3.3-70b-versatile",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 32768,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/openai/gpt-oss-safeguard-20b",
+      "name": "openai/gpt-oss-safeguard-20b",
+      "description": "MODERATION",
+      "tags": "MODERATION",
+      "max_tokens": 65536,
+      "model_type": "moderation",
+      "is_tools": false
+    },
+    {
+      "id": "groq/meta-llama/llama-guard-4-12b",
+      "name": "meta-llama/llama-guard-4-12b",
+      "description": "MODERATION",
+      "tags": "MODERATION",
+      "max_tokens": 1024,
+      "model_type": "moderation",
+      "is_tools": false
+    },
+    {
+      "id": "groq/compound-mini",
+      "name": "groq/compound-mini",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8192,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
+      "name": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8192,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/llama-3.1-8b-instant",
+      "name": "llama-3.1-8b-instant",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 131072,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/canopylabs/orpheus-arabic-saudi",
+      "name": "canopylabs/orpheus-arabic-saudi",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 50000,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/whisper-large-v3",
+      "name": "whisper-large-v3",
+      "description": "SPEECH2TEXT",
+      "tags": "SPEECH2TEXT",
+      "max_tokens": 448,
+      "model_type": "speech2text",
+      "is_tools": false
+    },
+    {
+      "id": "groq/openai/gpt-oss-120b",
+      "name": "openai/gpt-oss-120b",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 65536,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/moonshotai/kimi-k2-instruct-0905",
+      "name": "moonshotai/kimi-k2-instruct-0905",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 16384,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/whisper-large-v3-turbo",
+      "name": "whisper-large-v3-turbo",
+      "description": "SPEECH2TEXT",
+      "tags": "SPEECH2TEXT",
+      "max_tokens": 448,
+      "model_type": "speech2text",
+      "is_tools": false
+    },
+    {
+      "id": "groq/compound",
+      "name": "groq/compound",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8192,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/openai/gpt-oss-20b",
+      "name": "openai/gpt-oss-20b",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 65536,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/allam-2-7b",
+      "name": "allam-2-7b",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 4096,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/meta-llama/llama-prompt-guard-2-86m",
+      "name": "meta-llama/llama-prompt-guard-2-86m",
+      "description": "MODERATION",
+      "tags": "MODERATION",
+      "max_tokens": 512,
+      "model_type": "moderation",
+      "is_tools": false
+    },
+    {
+      "id": "groq/qwen/qwen3-32b",
+      "name": "qwen/qwen3-32b",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 40960,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/moonshotai/kimi-k2-instruct",
+      "name": "moonshotai/kimi-k2-instruct",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 16384,
+      "model_type": "chat",
+      "is_tools": false
+    },
+    {
+      "id": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+      "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "description": "LLM,CHAT",
+      "tags": "LLM,CHAT",
+      "max_tokens": 8192,
+      "model_type": "chat",
+      "is_tools": false
+    }
   ]
 }
 

@@ -18,6 +18,43 @@ class DocumentProcessor:
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
+
+    def _make_anchors(self, text: str, words: int = 18) -> Dict[str, str]:
+        """
+        Create short, highlight-friendly anchor phrases from a chunk.
+        These are used by the frontend to locate/underline text more reliably than full chunk matching.
+        
+        Generates 3 anchors:
+        - anchor_start: First N words of the chunk (more reliable than offset approach)
+        - anchor_end: Last N words of the chunk
+        - anchor_middle: Middle N words of the chunk (for additional matching options)
+        """
+        if not text:
+            return {"anchor_start": "", "anchor_end": "", "anchor_middle": ""}
+
+        # Normalize whitespace but keep punctuation (frontend will normalize further)
+        compact = re.sub(r"\s+", " ", text).strip()
+        toks = [t for t in compact.split(" ") if t]
+        if not toks:
+            return {"anchor_start": "", "anchor_end": "", "anchor_middle": ""}
+
+        # Take anchors from beginning, middle, and end of chunk for better matching
+        # Start: first N words (more reliable than skipping the beginning)
+        anchor_start = " ".join(toks[:min(words, len(toks))]).strip()
+        
+        # End: last N words
+        end_start_idx = max(0, len(toks) - words)
+        anchor_end = " ".join(toks[end_start_idx:]).strip()
+        
+        # Middle: N words from the middle of the chunk
+        middle_start_idx = max(0, (len(toks) - words) // 2)
+        anchor_middle = " ".join(toks[middle_start_idx:middle_start_idx + words]).strip()
+
+        return {
+            "anchor_start": anchor_start, 
+            "anchor_end": anchor_end,
+            "anchor_middle": anchor_middle
+        }
     
     def detect_file_type(self, file_path: str) -> str:
         """Detect file type using file extension"""
@@ -220,40 +257,78 @@ class DocumentProcessor:
     def chunk_text(self, text: str, metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Split text into chunks"""
         try:
+            result_chunks: List[Dict[str, Any]] = []
+
+            # IMPORTANT: If we have per-page text, chunk per page to avoid chunks spanning page boundaries.
+            if metadata and 'page_texts' in metadata and metadata['page_texts']:
+                chunk_index = 0
+                for page_info in metadata['page_texts']:
+                    page_number = page_info.get('page_number')
+                    page_text = page_info.get('text') or ""
+                    page_base = int(page_info.get('start_char') or 0)
+
+                    if not page_text.strip():
+                        continue
+
+                    page_chunks = self.text_splitter.split_text(page_text)
+                    page_current_pos = 0
+
+                    for chunk in page_chunks:
+                        chunk_start_in_page = page_text.find(chunk, page_current_pos)
+                        if chunk_start_in_page == -1:
+                            chunk_start_in_page = page_current_pos
+                        chunk_end_in_page = chunk_start_in_page + len(chunk)
+
+                        # Convert to global offsets
+                        chunk_start = page_base + chunk_start_in_page
+                        chunk_end = page_base + chunk_end_in_page
+
+                        anchors = self._make_anchors(chunk)
+
+                        result_chunks.append({
+                            'chunk_index': chunk_index,
+                            'content': chunk,
+                            'page_number': page_number,
+                            'start_char': chunk_start,
+                            'end_char': chunk_end,
+                            # Offsets within the page-extracted text
+                            'page_start_char': chunk_start_in_page,
+                            'page_end_char': chunk_end_in_page,
+                            **anchors
+                        })
+
+                        chunk_index += 1
+                        page_current_pos = chunk_end_in_page
+
+                logger.info(f"Created {len(result_chunks)} chunks from per-page text")
+                return result_chunks
+
+            # Fallback: chunk whole document (e.g., TXT/DOCX); page_number will be None
             chunks = self.text_splitter.split_text(text)
-            
-            result_chunks = []
             current_pos = 0
-            
+
             for i, chunk in enumerate(chunks):
-                # Find the position of this chunk in the original text
                 chunk_start = text.find(chunk, current_pos)
                 if chunk_start == -1:
                     chunk_start = current_pos
-                
                 chunk_end = chunk_start + len(chunk)
-                
-                # Determine page number if we have page information
-                page_number = None
-                if metadata and 'page_texts' in metadata:
-                    for page_info in metadata['page_texts']:
-                        if (chunk_start >= page_info['start_char'] and 
-                            chunk_start < page_info['end_char']):
-                            page_number = page_info['page_number']
-                            break
-                
-                chunk_data = {
+
+                anchors = self._make_anchors(chunk)
+
+                result_chunks.append({
                     'chunk_index': i,
                     'content': chunk,
                     'start_char': chunk_start,
                     'end_char': chunk_end,
-                    'page_number': page_number
-                }
-                
-                result_chunks.append(chunk_data)
+                    'page_number': None,
+                    'page_start_char': None,
+                    'page_end_char': None,
+                    **anchors
+                })
+
                 current_pos = chunk_end
-            
-            logger.info(f"Created {len(result_chunks)} chunks from text")
+
+            logger.info(f"Created {len(result_chunks)} chunks from whole-document text")
             return result_chunks
             
         except Exception as e:

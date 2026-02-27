@@ -264,6 +264,25 @@
   line-height: 1.0;
 }
 
+.highlightLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.pdf-region-highlight {
+  position: absolute;
+  border-radius: 3px;
+}
+
+.pdf-region-highlight-citation {
+  background: rgba(147, 51, 234, 0.22);
+  outline: 1px solid rgba(147, 51, 234, 0.55);
+}
+
 .textLayer > span {
   color: transparent;
   position: absolute;

@@ -21,6 +21,43 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/paper-chat", tags=["paper-chat"])
 
+
+def _ensure_document_chunks_highlighting_columns(db: Session):
+    """
+    Lightweight runtime schema guard.
+    Some deployments don't run migrations; without these columns, document processing will fail.
+    """
+    try:
+        # Check columns in information_schema
+        rows = db.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'document_chunks'
+              AND column_name IN ('page_start_char', 'page_end_char', 'anchor_start', 'anchor_end', 'anchor_middle')
+        """)).fetchall()
+        existing = {r[0] for r in rows} if rows else set()
+
+        to_add = []
+        if 'page_start_char' not in existing:
+            to_add.append("ADD COLUMN page_start_char INT NULL")
+        if 'page_end_char' not in existing:
+            to_add.append("ADD COLUMN page_end_char INT NULL")
+        if 'anchor_start' not in existing:
+            to_add.append("ADD COLUMN anchor_start TEXT NULL")
+        if 'anchor_end' not in existing:
+            to_add.append("ADD COLUMN anchor_end TEXT NULL")
+        if 'anchor_middle' not in existing:
+            to_add.append("ADD COLUMN anchor_middle TEXT NULL")
+
+        if to_add:
+            logger.warning(f"Auto-migrating document_chunks for highlighting: adding {', '.join([t.split()[2] for t in to_add])}")
+            db.execute(text(f"ALTER TABLE document_chunks {', '.join(to_add)}"))
+            db.commit()
+    except Exception as e:
+        # Do not hard fail here; we will fall back to inserting only legacy columns.
+        logger.warning(f"Failed to auto-migrate document_chunks highlighting columns: {e}")
+
 class DocumentUploadResponse(BaseModel):
     document_id: int
     file_name: str
@@ -52,6 +89,9 @@ async def process_document_background(document_id: int, file_path: str, db: Sess
     """Background task to process document"""
     try:
         logger.info(f"Starting background processing for document {document_id}")
+
+        # Ensure schema supports new highlighting metadata; safe no-op if already migrated
+        _ensure_document_chunks_highlighting_columns(db)
         
         # Update status to processing
         document = db.query(PaperDocument).filter(PaperDocument.id == document_id).first()
@@ -96,7 +136,12 @@ async def process_document_background(document_id: int, file_path: str, db: Sess
                 'chunk_index': chunk['chunk_index'],
                 'page_number': chunk.get('page_number'),
                 'start_char': chunk['start_char'],
-                'end_char': chunk['end_char']
+                'end_char': chunk['end_char'],
+                'page_start_char': chunk.get('page_start_char'),
+                'page_end_char': chunk.get('page_end_char'),
+                'anchor_start': chunk.get('anchor_start'),
+                'anchor_end': chunk.get('anchor_end'),
+                'anchor_middle': chunk.get('anchor_middle'),
             })
         
         # Add documents to Qdrant
@@ -109,16 +154,46 @@ async def process_document_background(document_id: int, file_path: str, db: Sess
             return
         
         # Save chunks to database
+        # Some deployments might still not have the new columns (or ALTER failed); detect at runtime.
+        try:
+            rows = db.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'document_chunks'
+                  AND column_name IN ('page_start_char', 'page_end_char', 'anchor_start', 'anchor_end', 'anchor_middle')
+            """)).fetchall()
+            existing_cols = {r[0] for r in rows} if rows else set()
+            supports_highlight_cols = len(existing_cols) == 5
+        except Exception:
+            supports_highlight_cols = False
+
         for i, (chunk, point_id) in enumerate(zip(chunks, point_ids)):
-            db_chunk = DocumentChunk(
-                document_id=document_id,
-                chunk_index=chunk['chunk_index'],
-                content=chunk['content'],
-                page_number=chunk.get('page_number'),
-                start_char=chunk['start_char'],
-                end_char=chunk['end_char'],
-                qdrant_point_id=point_id
-            )
+            if supports_highlight_cols:
+                db_chunk = DocumentChunk(
+                    document_id=document_id,
+                    chunk_index=chunk['chunk_index'],
+                    content=chunk['content'],
+                    page_number=chunk.get('page_number'),
+                    start_char=chunk['start_char'],
+                    end_char=chunk['end_char'],
+                    page_start_char=chunk.get('page_start_char'),
+                    page_end_char=chunk.get('page_end_char'),
+                    anchor_start=chunk.get('anchor_start'),
+                    anchor_end=chunk.get('anchor_end'),
+                    anchor_middle=chunk.get('anchor_middle'),
+                    qdrant_point_id=point_id
+                )
+            else:
+                db_chunk = DocumentChunk(
+                    document_id=document_id,
+                    chunk_index=chunk['chunk_index'],
+                    content=chunk['content'],
+                    page_number=chunk.get('page_number'),
+                    start_char=chunk['start_char'],
+                    end_char=chunk['end_char'],
+                    qdrant_point_id=point_id
+                )
             db.add(db_chunk)
         
         # Update status to completed
@@ -214,6 +289,8 @@ async def get_user_documents(
         {
             "id": doc.id,
             "file_name": doc.file_name,
+            "file_size": doc.file_size,
+            "file_type": doc.file_type,
             "title": doc.title or doc.file_name,
             "authors": doc.authors,
             "abstract": doc.abstract,
@@ -242,7 +319,10 @@ async def get_document_status(
     return {
         "document_id": document.id,
         "processing_status": document.processing_status,
-        "title": document.title or document.file_name
+        "title": document.title or document.file_name,
+        "file_name": document.file_name,
+        "file_size": document.file_size,
+        "file_type": document.file_type
     }
 
 @router.post("/documents/{document_id}/sessions", response_model=PaperChatSessionResponse)
@@ -483,6 +563,10 @@ async def chat_with_paper(
             provider = "gemini"
             llm_factory = "gemini"
             llm_name = model.replace("gemini/", "") if model.startswith("gemini/") else model
+        elif model.startswith("groq/"):
+            provider = "groq"
+            llm_factory = "groq"
+            llm_name = model.replace("groq/", "") if model.startswith("groq/") else model
         elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
             provider = "ollama"
             llm_factory = "ollama"
@@ -564,15 +648,48 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
     
     try:
-        # Delete from Qdrant if collection exists
+        # If migrations weren't run, ORM access to document_chunks can crash due to missing columns.
+        # We therefore do DB deletes via raw SQL (and optionally attempt a lightweight auto-migrate).
+        try:
+            _ensure_document_chunks_highlighting_columns(db)
+        except Exception:
+            pass
+
+        # Best-effort external cleanup first (never block DB delete on these)
         if document.qdrant_collection_name:
-            qdrant_manager.delete_collection(document.qdrant_collection_name)
-        
-        # Delete from MinIO
-        minio_client.delete_file(document.file_path)
-        
-        # Delete from database (cascades to chunks and chat sessions)
-        db.delete(document)
+            try:
+                qdrant_manager.delete_collection(document.qdrant_collection_name)
+            except Exception as e:
+                logger.warning(f"Failed to delete Qdrant collection for document {document_id}: {e}")
+
+        if document.file_path:
+            try:
+                minio_client.delete_file(document.file_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete MinIO file for document {document_id}: {e}")
+
+        # DB cleanup: use raw SQL to avoid ORM selecting missing columns in partially-migrated DBs.
+        db.execute(
+            text("""
+                DELETE FROM paper_chat_messages
+                WHERE session_id IN (
+                    SELECT id FROM paper_chat_sessions WHERE document_id = :document_id
+                )
+            """),
+            {"document_id": document_id},
+        )
+        db.execute(
+            text("DELETE FROM paper_chat_sessions WHERE document_id = :document_id"),
+            {"document_id": document_id},
+        )
+        db.execute(
+            text("DELETE FROM document_chunks WHERE document_id = :document_id"),
+            {"document_id": document_id},
+        )
+        db.execute(
+            text("DELETE FROM paper_documents WHERE id = :document_id AND user_id = :user_id"),
+            {"document_id": document_id, "user_id": current_user["userId"]},
+        )
         db.commit()
         
         return {"message": "Document deleted successfully"}

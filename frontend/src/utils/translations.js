@@ -161,6 +161,7 @@ export const translations = {
     'profile.removeProviderConfirm': 'Are you sure you want to remove this provider?',
     'profile.providerRemoved': 'Provider removed successfully',
     'profile.noProvidersAdded': 'No providers added yet',
+    'profile.scrollForMore': 'Scroll for more',
     'auth.logout': 'Logout',
     
     // Create Conversation
@@ -410,6 +411,7 @@ export const translations = {
     'profile.removeProviderConfirm': 'Bạn có chắc muốn xóa LLM provider này?',
     'profile.providerRemoved': 'Đã xóa thành công',
     'profile.noProvidersAdded': 'Chưa thêm LLM provider nào',
+    'profile.scrollForMore': 'Kéo xuống để xem thêm',
     'auth.logout': 'Đăng xuất',
     
     // Create Conversation

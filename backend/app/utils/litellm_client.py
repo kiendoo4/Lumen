@@ -53,6 +53,12 @@ async def call_llm(
             # Add prefix "gemini/" to model name to use Gemini API (not Vertex AI)
             if not model.startswith("gemini/"):
                 model = f"gemini/{model}"
+        elif model.startswith("groq/"):
+            provider = "groq"
+            config = await get_llm_config(user_id, "groq")
+            if not config or not config.get("api_key"):
+                raise ValueError(f"Groq API key not found for user {user_id}. Please configure Groq provider in settings.")
+            api_key = config["api_key"]
         elif model.startswith("ollama") or model.startswith("llama") or model.startswith("mistral") or model.startswith("codellama") or model.startswith("phi"):
             provider = "ollama"
             config = await get_llm_config(user_id, "ollama")
@@ -128,6 +134,8 @@ async def call_llm(
             completion_params["api_key"] = api_key
             if base_url:
                 completion_params["base_url"] = base_url
+        elif provider == "groq":
+            completion_params["api_key"] = api_key
         elif provider == "ollama":
             completion_params["base_url"] = base_url
         

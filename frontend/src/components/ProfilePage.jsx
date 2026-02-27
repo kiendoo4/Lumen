@@ -10,21 +10,24 @@ import './ProfilePage.css';
 const PROVIDER_CAPABILITIES = {
   openai: ['LLM', 'TEXT EMBEDDING', 'TTS', 'TEXT RE-RANK', 'SPEECH2TEXT', 'MODERATION'],
   gemini: ['LLM', 'TEXT EMBEDDING', 'IMAGE2TEXT'],
-  ollama: ['LLM', 'TEXT EMBEDDING', 'SPEECH2TEXT', 'MODERATION']
+  ollama: ['LLM', 'TEXT EMBEDDING', 'SPEECH2TEXT', 'MODERATION'],
+  groq: ['LLM', 'CHAT']
 };
 
 // Provider display names
 const PROVIDER_NAMES = {
   openai: 'OpenAI',
   gemini: 'Gemini',
-  ollama: 'Ollama'
+  ollama: 'Ollama',
+  groq: 'Groq'
 };
 
 // Provider logos
 const PROVIDER_LOGOS = {
   openai: '/images/openai.png',
   gemini: '/images/gemini.png',
-  ollama: '/images/ollama.png'
+  ollama: '/images/ollama.png',
+  groq: '/images/groq.png'
 };
 
 function ProviderModal({ isOpen, onClose, provider, onSave, existingConfig }) {
@@ -201,7 +204,7 @@ function LLMProvidersTab() {
   };
 
   const addedProviders = Object.keys(providers).filter(p => providers[p].api_key || (p === 'ollama' && providers[p].base_url));
-  const availableProviders = ['openai', 'gemini', 'ollama'].filter(p => !addedProviders.includes(p));
+  const availableProviders = ['openai', 'gemini', 'ollama', 'groq'].filter(p => !addedProviders.includes(p));
 
   const getProviderCapabilityTags = (provider) => {
     const models = availableModels[provider] || [];
